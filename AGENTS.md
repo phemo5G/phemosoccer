@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Match simulation lives in src/lib/engine.ts (pure, framework-free) and is rendered on a canvas by src/components/Match.tsx — keeps game logic testable and separate from UI.
