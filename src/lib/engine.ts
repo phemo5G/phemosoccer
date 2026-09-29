@@ -89,7 +89,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   for (const t of [0, 1] as const) {
     const owner = b.owner >= 0 && s.players[b.owner]!.team === t ? b.owner : -1;
     if (owner >= 0) { s.controlled[t] = owner; continue; }
-    const cur = s.players[s.controlled[t]!];
+    const cur = s.players[s.controlled[t]]!;
     let best = s.controlled[t], bd = dist(cur.x, cur.y, b.x, b.y) - 40;
     s.players.forEach((p, i) => {
       if (p.team !== t || p.gk) return;
