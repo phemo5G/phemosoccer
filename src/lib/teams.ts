@@ -15,7 +15,7 @@ export const benchFor = (t: Team) => t.bench ?? ["Sub GK", "Sub DEF", "Sub MID",
 // Club and player names are used as fan-made rosters; no official licence.
 export const TEAMS: Team[] = [
   // ===== Premier League (England) =====
-  { id: "liv", name: "Liverpool", short: "LIV", primary: "#c8102e", secondary: "#ffffff", rating: 89, league: "Premier League", players: ["Salah", "Van Dijk", "Alisson", "Mac Allister", "Szoboszlai"] },
+  { id: "liv", name: "Liverpool", short: "LIV", primary: "#c8102e", secondary: "#ffffff", rating: 89, league: "Premier League", players: ["Alisson", "Van Dijk", "Szoboszlai", "Wirtz", "Isak"], bench: ["Salah", "Mac Allister", "Gakpo", "Frimpong"] },
   { id: "mci", name: "Manchester City", short: "MCI", primary: "#6cabdd", secondary: "#ffffff", rating: 90, league: "Premier League", players: ["Haaland", "De Bruyne", "Rodri", "Foden", "Ederson"] },
   { id: "ars", name: "Arsenal", short: "ARS", primary: "#ef0107", secondary: "#ffffff", rating: 88, league: "Premier League", players: ["Saka", "Ødegaard", "Rice", "Saliba", "Raya"] },
   { id: "che", name: "Chelsea", short: "CHE", primary: "#034694", secondary: "#ffffff", rating: 85, league: "Premier League", players: ["Palmer", "Caicedo", "Jackson", "Cucurella", "Sánchez"] },
