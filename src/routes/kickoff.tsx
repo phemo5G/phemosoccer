@@ -22,7 +22,7 @@ function KickOff() {
   const [playing, setPlaying] = useState(false);
 
   if (playing)
-    return <Match home={TEAMS[home]} away={TEAMS[away]} twoPlayer={twoPlayer} onExit={() => setPlaying(false)} />;
+    return <Match home={TEAMS[home]!} away={TEAMS[away]!} twoPlayer={twoPlayer} onExit={() => setPlaying(false)} />;
 
   return (
     <main className="menu-bg min-h-screen px-5 py-8">

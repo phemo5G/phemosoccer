@@ -43,14 +43,14 @@ export function createState(a: Team, b: Team, duration = 180): State {
 function kickoff(s: State, team: 0 | 1) {
   s.players.forEach((p) => { p.x = p.hx; p.y = p.hy; p.vx = p.vy = 0; p.cd = 0.3; });
   s.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, owner: -1, z: 0 };
-  const k = s.players[team === 0 ? 3 : 8];
+  const k = s.players[team === 0 ? 3 : 8]!;
   k.x = W / 2 + (team === 0 ? -16 : 16); k.y = H / 2;
 }
 
 const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by);
 
 function kick(s: State, i: number, shoot: boolean, aimY: number) {
-  const p = s.players[i];
+  const p = s.players[i]!;
   const b = s.ball;
   if (shoot) {
     const gx = p.team === 0 ? W + 20 : -20;
@@ -67,7 +67,7 @@ function kick(s: State, i: number, shoot: boolean, aimY: number) {
       if (sc > bestScore) { bestScore = sc; best = j; }
     });
     if (best < 0) return;
-    const q = s.players[best];
+    const q = s.players[best]!;
     const tx = q.x + q.vx * 0.3, ty = q.y + q.vy * 0.3;
     const d = dist(b.x, b.y, tx, ty);
     const sp = Math.min(650, 260 + d * 1.3);
@@ -87,9 +87,9 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
 
   // choose controlled players
   for (const t of [0, 1] as const) {
-    const owner = b.owner >= 0 && s.players[b.owner].team === t ? b.owner : -1;
+    const owner = b.owner >= 0 && s.players[b.owner]!.team === t ? b.owner : -1;
     if (owner >= 0) { s.controlled[t] = owner; continue; }
-    const cur = s.players[s.controlled[t]];
+    const cur = s.players[s.controlled[t]!];
     let best = s.controlled[t], bd = dist(cur.x, cur.y, b.x, b.y) - 40;
     s.players.forEach((p, i) => {
       if (p.team !== t || p.gk) return;
@@ -99,7 +99,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     s.controlled[t] = best;
   }
 
-  const ownerTeam = b.owner >= 0 ? s.players[b.owner].team : -1;
+  const ownerTeam = b.owner >= 0 ? s.players[b.owner]!.team : -1;
   // closest AI chaser per team
   const chaser: [number, number] = [-1, -1];
   for (const t of [0, 1] as const) {
@@ -159,14 +159,14 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   // player separation
   for (let i = 0; i < s.players.length; i++)
     for (let j = i + 1; j < s.players.length; j++) {
-      const a = s.players[i], c = s.players[j];
+      const a = s.players[i]!, c = s.players[j]!;
       const d = dist(a.x, a.y, c.x, c.y);
       if (d > 0 && d < PR * 2) { const o = (PR * 2 - d) / 2; const nx = (a.x - c.x) / d, ny = (a.y - c.y) / d; a.x += nx * o; a.y += ny * o; c.x -= nx * o; c.y -= ny * o; }
     }
 
   // ball
   if (b.owner >= 0) {
-    const o = s.players[b.owner];
+    const o = s.players[b.owner]!;
     b.x = o.x + o.fx * 15; b.y = o.y + o.fy * 15; b.vx = o.vx; b.vy = o.vy;
     // tackles
     s.players.forEach((q, j) => {
@@ -199,7 +199,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       if (q.cd <= 0 && d < reach && d < bd && (bs < 600 || q.gk)) { bd = d; best = j; }
     });
     if (best >= 0) {
-      const q = s.players[best];
+      const q = s.players[best]!;
       if (q.gk && bs > 500 && Math.random() < 0.35) { b.vx *= -0.4; b.vy = (Math.random() - 0.5) * 300; q.cd = 0.3; }
       else { b.owner = best; }
     }
