@@ -6,8 +6,11 @@ export type Team = {
   secondary: string;
   rating: number;
   players: string[];
+  bench?: string[];
   league: string;
 };
+
+export const benchFor = (t: Team) => t.bench ?? ["Sub GK", "Sub DEF", "Sub MID", "Sub FWD"].map((r) => `${t.short} ${r}`);
 
 // Club and player names are used as fan-made rosters; no official licence.
 export const TEAMS: Team[] = [

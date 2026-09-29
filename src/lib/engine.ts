@@ -293,3 +293,23 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     }
   }
 }
+
+export const FORMATIONS: Record<string, [number, number][]> = {
+  "Diamond 1-2-1": [[0.2, 0.5], [0.3, 0.25], [0.3, 0.75], [0.44, 0.5]],
+  "Box 2-2": [[0.22, 0.32], [0.22, 0.68], [0.42, 0.4], [0.42, 0.62]],
+  "Attack 1-1-2": [[0.22, 0.5], [0.33, 0.5], [0.45, 0.3], [0.45, 0.7]],
+  "Defend 3-1": [[0.2, 0.25], [0.18, 0.5], [0.2, 0.75], [0.4, 0.5]],
+};
+
+export function setFormation(s: State, team: 0 | 1, key: string) {
+  const f = FORMATIONS[key]; if (!f) return;
+  s.players.filter((p) => p.team === team && !p.gk).forEach((p, i) => {
+    const [fx, fy] = f[i]!;
+    p.hx = team === 0 ? fx * W : W - fx * W; p.hy = fy * H;
+  });
+}
+
+export function substitute(s: State, team: 0 | 1, slot: number, name: string) {
+  const p = s.players.filter((q) => q.team === team)[slot];
+  if (p) p.name = name;
+}
