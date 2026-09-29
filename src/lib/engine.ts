@@ -32,7 +32,7 @@ export function createState(a: Team, b: Team, duration = 180): State {
   [a, b].forEach((t, ti) => {
     FORM.forEach(([fx, fy, gk], i) => {
       const hx = ti === 0 ? fx * W : W - fx * W;
-      players.push({ x: hx, y: fy * H, vx: 0, vy: 0, fx: ti === 0 ? 1 : -1, fy: 0, team: ti as 0 | 1, gk, hx, hy: fy * H, num: gk ? 1 : i + 6, cd: 0, name: t.players[i] });
+      players.push({ x: hx, y: fy * H, vx: 0, vy: 0, fx: ti === 0 ? 1 : -1, fy: 0, team: ti as 0 | 1, gk, hx, hy: fy * H, num: gk ? 1 : i + 6, cd: 0, name: t.players[i] ?? "" });
     });
   });
   const s: State = { players, ball: { x: W / 2, y: H / 2, vx: 0, vy: 0, owner: -1, z: 0 }, score: [0, 0], time: 0, duration, controlled: [3, 8], pause: 0, flash: "", over: false };
