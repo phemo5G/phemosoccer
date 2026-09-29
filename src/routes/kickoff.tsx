@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { TEAMS } from "@/lib/teams";
+import { TEAMS, LEAGUES } from "@/lib/teams";
 import { Match } from "@/components/Match";
 
 export const Route = createFileRoute("/kickoff")({
@@ -47,15 +47,20 @@ function Picker({ label, value, onChange, other }: { label: string; value: numbe
   return (
     <section>
       <p className="eyebrow mb-2">{label}</p>
-      <div className="grid grid-cols-2 gap-2">
-        {TEAMS.map((t, i) => (
-          <button key={t.id} disabled={i === other} onClick={() => onChange(i)} className={i === value ? "team-btn team-on" : "team-btn"}>
-            <i className="crest" style={{ background: t.primary, borderColor: t.secondary }} />
-            <span className="flex-1 text-left">{t.name}</span>
-            <span className="display text-xl">{t.rating}</span>
-          </button>
-        ))}
-      </div>
+      {LEAGUES.map((lg) => (
+        <div key={lg} className="mb-4">
+          <p className="eyebrow mb-1.5 opacity-60">{lg}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {TEAMS.map((t, i) => t.league !== lg ? null : (
+              <button key={t.id} disabled={i === other} onClick={() => onChange(i)} className={i === value ? "team-btn team-on" : "team-btn"}>
+                <i className="crest" style={{ background: t.primary, borderColor: t.secondary }} />
+                <span className="flex-1 text-left">{t.name}</span>
+                <span className="display text-xl">{t.rating}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
