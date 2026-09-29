@@ -8,3 +8,5 @@
 - [ ] Clubs (custom player)
 - [ ] Online multiplayer + accounts (needs Lovable Cloud)
 - [ ] Progression over time
+- [ ] 3D view, slide tackle, keeper dive, chip/finesse/power shots (5-a-side)
+- [ ] Top 5 real players per team; tactics menu with subs + formations
