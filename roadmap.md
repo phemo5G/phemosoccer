@@ -3,11 +3,11 @@
 - [x] Playable top-down match: pass, shoot, dribble, tackle, goalkeepers
 - [x] Kick-Off: 2 players on one keyboard, touch controls on mobile, vs CPU option
 - [x] Invented clubs & players (real licences not available)
-- [ ] Career Mode (transfers, tactics, competitions)
-- [ ] Ultimate Team (player cards, packs)
-- [ ] Clubs (custom player)
-- [ ] Online multiplayer + accounts (needs Lovable Cloud)
-- [ ] Progression over time
-- [ ] 3D view, slide tackle, keeper dive, chip/finesse/power shots (5-a-side)
-- [ ] Top 5 real players per team; tactics menu with subs + formations
-- [ ] Liverpool: Alisson GK, Van Dijk, Szoboszlai, Wirtz, Isak (ask: who is 'barcolay'?)
+- [x] Career Mode (transfers, tactics, competitions)
+- [x] Ultimate Team (player cards, packs)
+- [x] Clubs (custom player)
+- [x] Online multiplayer + accounts (needs Lovable Cloud)
+- [x] Progression over time
+- [x] 3D view, slide tackle, keeper dive, chip/finesse/power shots (5-a-side)
+- [x] Top 5 real players per team; tactics menu with subs + formations
+- [x] Liverpool: Alisson GK, Van Dijk, Szoboszlai, Wirtz, Isak + Barcola on bench
