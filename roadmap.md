@@ -12,3 +12,4 @@
 - [x] Top 5 real players per team; tactics menu with subs + formations
 - [x] Liverpool: Alisson GK, Van Dijk, Szoboszlai, Wirtz, Isak + Barcola on bench
 - [ ] Camera toggle (broadcast / top-down), mini shot+pass buttons, lob/through pass, skill button, 11-a-side, headers, corners
+- [ ] Real benches all clubs; 2P touch buttons on each side above game; fouls -> free kicks/penalties
