@@ -50,13 +50,13 @@ export const TEAMS: Team[] = [
   // ===== Ligue 1 (France) =====
   { id: "psg", name: "Paris Saint-Germain", short: "PSG", primary: "#004170", secondary: "#da291c", rating: 88, league: "Ligue 1", players: ["Donnarumma", "Dembélé", "Vitinha", "Hakimi", "Barcola"] },
   { id: "om", name: "Marseille", short: "OM", primary: "#2faee0", secondary: "#ffffff", rating: 82, league: "Ligue 1", players: ["Rulli", "Greenwood", "Balerdi", "Rabiot", "Harit"] },
-  { id: "mon", name: "Monaco", short: "MON", primary: "#e63312", secondary: "#ffffff", rating: 83, league: "Ligue 1", players: ["Ben Seghir", "Minamino", "Köhn", "Singho", "Zakaria"] },
+  { id: "mon", name: "Monaco", short: "MON", primary: "#e63312", secondary: "#ffffff", rating: 83, league: "Ligue 1", players: ["Köhn", "Minamino", "Ben Seghir", "Singho", "Zakaria"] },
   { id: "lil", name: "Lille", short: "LIL", primary: "#e01e13", secondary: "#ffffff", rating: 82, league: "Ligue 1", players: ["Chevalier", "David", "André", "Gudmundsson", "Diakité"] },
   { id: "oly", name: "Lyon", short: "OLY", primary: "#ffffff", secondary: "#da001a", rating: 81, league: "Ligue 1", players: ["Perri", "Cherki", "Lacazette", "Tolisso", "Tagliafico"] },
-  { id: "nic", name: "Nice", short: "NIC", primary: "#000000", secondary: "#e30613", rating: 80, league: "Ligue 1", players: ["Laborde", "Bułka", "Dante", "Boudaoui", "Guessand"] },
+  { id: "nic", name: "Nice", short: "NIC", primary: "#000000", secondary: "#e30613", rating: 80, league: "Ligue 1", players: ["Bułka", "Laborde", "Dante", "Boudaoui", "Guessand"] },
 
   // ===== International =====
-  { id: "arg", name: "Argentina", short: "ARG", primary: "#75aadb", secondary: "#ffffff", rating: 91, league: "International", players: ["Messi", "Julián Álvarez", "E. Martínez", "Mac Allister", "Enzo Fernández"] },
+  { id: "arg", name: "Argentina", short: "ARG", primary: "#75aadb", secondary: "#ffffff", rating: 91, league: "International", players: ["E. Martínez", "Julián Álvarez", "Messi", "Mac Allister", "Enzo Fernández"] },
   { id: "por", name: "Portugal", short: "POR", primary: "#046a38", secondary: "#da291c", rating: 89, league: "International", players: ["Diogo Costa", "Ronaldo", "Bruno Fernandes", "Bernardo Silva", "Rúben Dias"] },
   { id: "bra", name: "Brazil", short: "BRA", primary: "#ffdf00", secondary: "#009c3b", rating: 89, league: "International", players: ["Alisson", "Neymar", "Vinícius Jr", "Rodrygo", "Casemiro"] },
   { id: "fra", name: "France", short: "FRA", primary: "#0055a4", secondary: "#ffffff", rating: 90, league: "International", players: ["Maignan", "Mbappé", "Griezmann", "Saliba", "Tchouaméni"] },
