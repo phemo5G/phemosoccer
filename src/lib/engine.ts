@@ -71,7 +71,7 @@ function kick(s: State, i: number, type: Kick, aimY: number) {
   const p = s.players[i]!;
   const b = s.ball;
   b.spin = 0; b.vz = 0;
-  if (type !== "pass") {
+  if (type === "power" || type === "finesse" || type === "chip") {
     const gx = p.team === 0 ? W + 20 : -20;
     const d0 = dist(b.x, b.y, gx, H / 2);
     if (type === "power") {
