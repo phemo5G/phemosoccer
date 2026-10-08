@@ -10,3 +10,4 @@
 - [ ] Camera toggle (broadcast / top-down), mini shot+pass buttons, lob/through pass, skill button, 11-a-side, headers, corners
 - [ ] Real benches all clubs; 2P touch buttons on each side above game; fouls -> free kicks/penalties
 - [ ] Online mode: two players enter the same code to be matched and play each other
+- [ ] Mobile buttons: P1 above the pitch, P2 below

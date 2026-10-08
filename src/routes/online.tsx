@@ -46,7 +46,7 @@ function Online() {
     n.send = (event, payload) => { void ch.send({ type: "broadcast", event, payload }); };
     ch.on("broadcast", { event: "pad" }, ({ payload }) => {
       const p = payload as Pad, cur = n.remotePad.current;
-      n.remotePad.current = cur ? { ...p, pass: cur.pass || p.pass, shoot: cur.shoot || p.shoot, finesse: cur.finesse || p.finesse, chip: cur.chip || p.chip, tackle: cur.tackle || p.tackle, lob: cur.lob || p.lob, through: cur.through || p.through, skill: cur.skill || p.skill } : p;
+      n.remotePad.current = cur ? { ...p, pass: cur.pass || p.pass, shoot: cur.shoot || p.shoot, finesse: cur.finesse || p.finesse, chip: cur.chip || p.chip, tackle: cur.tackle || p.tackle, lob: cur.lob || p.lob, through: cur.through || p.through, skill: cur.skill || p.skill } as Pad : p;
     });
     ch.on("broadcast", { event: "state" }, ({ payload }) => { n.remoteState.current = payload; });
     ch.on("presence", { event: "sync" }, () => {

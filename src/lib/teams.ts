@@ -110,4 +110,4 @@ const BENCHES: Record<string, string[]> = {
   ger: ["Baumann", "Füllkrug", "Sané", "Gnabry", "Rüdiger", "Tah", "Raum", "Kroos", "Andrich", "Gündoğan"],
   ned: ["Flekken", "Depay", "Malen", "Weghorst", "De Vrij", "Aké", "Dumfries", "Reijnders", "Koopmeiners", "Schouten"],
 };
-TEAMS.forEach((t) => { if (BENCHES[t.id]) t.bench = BENCHES[t.id]; });
+TEAMS.forEach((t) => { const b = BENCHES[t.id]; if (b) t.bench = b; });

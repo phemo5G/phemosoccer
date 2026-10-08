@@ -113,10 +113,7 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
         <button className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</button>
         <button className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</button>
       </div>
-      <div className="touch-row">
-        {(!net || !guest) && <TouchPad pad={pads.current[0]} label="P1" />}
-        {((twoPlayer && !net) || guest) && <TouchPad pad={pads.current[1]} label="P2" />}
-      </div>
+      {(!net || !guest) && <div className="touch-row"><TouchPad pad={pads.current[0]} label="P1" /></div>}
       <div className="pitch-wrap">
         <canvas ref={canvasRef} width={CW} height={CH} className="pitch-canvas" />
         {hud.flash && !hud.over && <div className="flash">{hud.flash}</div>}
@@ -135,6 +132,7 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
           </div>
         )}
       </div>
+      {((twoPlayer && !net) || guest) && <div className="touch-row"><TouchPad pad={pads.current[1]} label="P2" /></div>}
       <p className="keys-hint">
         {net
           ? "WASD/Arrows move · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide · C camera"
