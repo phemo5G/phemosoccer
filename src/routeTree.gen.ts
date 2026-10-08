@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KickoffRouteImport } from './routes/kickoff'
+import { Route as OnlineRouteImport } from './routes/online'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const KickoffRoute = KickoffRouteImport.update({
   path: '/kickoff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnlineRoute = OnlineRouteImport.update({
+  id: '/online',
+  path: '/online',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/kickoff': typeof KickoffRoute
+  '/online': typeof OnlineRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/kickoff': typeof KickoffRoute
+  '/online': typeof OnlineRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/kickoff': typeof KickoffRoute
+  '/online': typeof OnlineRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/kickoff'
+  fullPaths: '/' | '/kickoff' | '/online'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/kickoff'
-  id: '__root__' | '/' | '/kickoff'
+  to: '/' | '/kickoff' | '/online'
+  id: '__root__' | '/' | '/kickoff' | '/online'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   KickoffRoute: typeof KickoffRoute
+  OnlineRoute: typeof OnlineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KickoffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/online': {
+      id: '/online'
+      path: '/online'
+      fullPath: '/online'
+      preLoaderRoute: typeof OnlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   KickoffRoute: KickoffRoute,
+  OnlineRoute: OnlineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
