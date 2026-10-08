@@ -67,3 +67,47 @@ export const TEAMS: Team[] = [
 ];
 
 export const LEAGUES = [...new Set(TEAMS.map((t) => t.league))];
+
+// Real benches: 4 subs, then 3 defenders + 3 midfielders who complete the starting XI.
+const BENCHES: Record<string, string[]> = {
+  liv: ["Barcola", "Salah", "Mac Allister", "Gakpo", "Konaté", "Robertson", "Frimpong", "Gravenberch", "Jones", "Endo"],
+  mci: ["Ortega", "Marmoush", "Bernardo Silva", "Doku", "Dias", "Gvardiol", "Akanji", "Kovačić", "Gündoğan", "Reijnders"],
+  ars: ["Kepa", "Martinelli", "Trossard", "Havertz", "Gabriel", "White", "Timber", "Partey", "Merino", "Zubimendi"],
+  che: ["Jörgensen", "Neto", "Nkunku", "Pedro Neto", "Colwill", "James", "Fofana", "Enzo Fernández", "Lavia", "Dewsbury-Hall"],
+  mun: ["Bayındır", "Højlund", "Mount", "Amad", "Maguire", "De Ligt", "Dalot", "Casemiro", "Ugarte", "Eriksen"],
+  tot: ["Forster", "Richarlison", "Johnson", "Solanke", "Van de Ven", "Udogie", "Porro", "Bentancur", "Bissouma", "Sarr"],
+  new: ["Dúbravka", "Wilson", "Barnes", "Murphy", "Botman", "Schär", "Trippier", "Joelinton", "Longstaff", "Willock"],
+  rma: ["Lunin", "Rodrygo", "Güler", "Brahim", "Rüdiger", "Militão", "Carvajal", "Tchouaméni", "Camavinga", "Modrić"],
+  bar: ["Szczęsny", "Ferran Torres", "Olmo", "Fermín", "Araújo", "Cubarsí", "Koundé", "De Jong", "Gavi", "Casadó"],
+  atm: ["Musso", "Sørloth", "Correa", "Lino", "Giménez", "Le Normand", "Hancko", "De Paul", "Barrios", "Gallagher"],
+  ath: ["Agirrezabala", "Iñaki Williams", "Guruzeta", "Muniain", "Yeray", "Laporte", "De Marcos", "Vesga", "Jauregizar", "Ruiz de Galarreta"],
+  rso: ["Marrero", "Barrenetxea", "Sadiq", "Becker", "Le Normand", "Aramburu", "Muñoz", "Brais Méndez", "Turrientes", "Sucic"],
+  sev: ["Dmitrović", "En-Nesyri", "Isaac Romero", "Ocampos", "Gudelj", "Navas", "Kike Salas", "Agoumé", "Saúl", "Juanlu"],
+  bay: ["Ulreich", "Müller", "Olise", "Coman", "Upamecano", "Kim Min-jae", "Davies", "Goretzka", "Pavlović", "Laimer"],
+  bvb: ["Meyer", "Beier", "Gittens", "Füllkrug", "Hummels", "Süle", "Ryerson", "Can", "Sabitzer", "Nmecha"],
+  lev: ["Lomb", "Schick", "Boniface", "Adli", "Hincapié", "Kossounou", "Frimpong", "Andrich", "Palacios", "Terrier"],
+  rbl: ["Vandevoordt", "Poulsen", "Baumgartner", "Nusa", "Lukeba", "Raum", "Henrichs", "Haidara", "Seiwald", "Kampl"],
+  sge: ["Santos", "Knauff", "Götze", "Chaibi", "Tuta", "Theate", "Kristensen", "Skhiri", "Tuta", "Bahoya"],
+  vfb: ["Bredlow", "Demirović", "Millot", "Woltemade", "Rouault", "Mittelstädt", "Vagnoman", "Karazor", "Leweling", "Chabot"],
+  int: ["Martínez", "Thuram", "Frattesi", "Taremi", "Acerbi", "Pavard", "Dimarco", "Mkhitaryan", "Dumfries", "Zieliński"],
+  mil: ["Sportiello", "Morata", "Abraham", "Chukwueze", "Tomori", "Gabbia", "Calabria", "Fofana", "Musah", "Loftus-Cheek"],
+  juv: ["Perin", "Conceição", "Koopmeiners", "Weah", "Gatti", "Danilo", "Cambiaso", "Thuram", "McKennie", "Douglas Luiz"],
+  nap: ["Caprile", "Politano", "Raspadori", "Neres", "Rrahmani", "Buongiorno", "Olivera", "Lobotka", "McTominay", "Gilmour"],
+  rom: ["Ryan", "El Shaarawy", "Soulé", "Baldanzi", "Hummels", "N'Dicka", "Angeliño", "Cristante", "Koné", "Paredes"],
+  ata: ["Rui Patrício", "De Ketelaere", "Zaniolo", "Samardžić", "Djimsiti", "Hien", "Bellanova", "Pašalić", "Zappacosta", "Kolašinac"],
+  psg: ["Safonov", "Kvaratskhelia", "Doué", "Ramos", "Marquinhos", "Pacho", "Nuno Mendes", "João Neves", "Fabián Ruiz", "Zaïre-Emery"],
+  om: ["De Lange", "Wahi", "Rongier", "Luis Henrique", "Cornelius", "Mbemba", "Merlin", "Højbjerg", "Kondogbia", "Koné"],
+  mon: ["Majecki", "Embolo", "Akliouche", "Golovin", "Kehrer", "Mawissa", "Vanderson", "Camara", "Magassa", "Zakaria"],
+  lil: ["Mannone", "Zhegrova", "Haraldsson", "Cabella", "Alexsandro", "Ismaily", "Meunier", "Bouaddi", "Mukau", "Bentaleb"],
+  oly: ["Descamps", "Mikautadze", "Fofana", "Nuamah", "Niakhaté", "Mata", "Maitland-Niles", "Matić", "Veretout", "Tessmann"],
+  nic: ["Dupé", "Moffi", "Boga", "Cho", "Bombito", "Bard", "Clauss", "Rosario", "Ndayishimiye", "Sanson"],
+  arg: ["Rulli", "Lautaro", "Di María", "Garnacho", "Romero", "Otamendi", "Molina", "De Paul", "Paredes", "Lo Celso"],
+  por: ["Rui Patrício", "Leão", "Félix", "Jota", "Pepe", "Nuno Mendes", "Cancelo", "Vitinha", "Palhinha", "João Neves"],
+  bra: ["Ederson", "Raphinha", "Endrick", "Martinelli", "Marquinhos", "Militão", "Danilo", "Bruno Guimarães", "Paquetá", "Gerson"],
+  fra: ["Areola", "Dembélé", "Thuram", "Kolo Muani", "Upamecano", "Koundé", "T. Hernández", "Kanté", "Rabiot", "Camavinga"],
+  eng: ["Ramsdale", "Foden", "Palmer", "Watkins", "Stones", "Guéhi", "Walker", "Mainoo", "Alexander-Arnold", "Gallagher"],
+  esp: ["Raya", "Nico Williams", "Morata", "Ferran Torres", "Laporte", "Le Normand", "Carvajal", "Fabián Ruiz", "Zubimendi", "Merino"],
+  ger: ["Baumann", "Füllkrug", "Sané", "Gnabry", "Rüdiger", "Tah", "Raum", "Kroos", "Andrich", "Gündoğan"],
+  ned: ["Flekken", "Depay", "Malen", "Weghorst", "De Vrij", "Aké", "Dumfries", "Reijnders", "Koopmeiners", "Schouten"],
+};
+TEAMS.forEach((t) => { if (BENCHES[t.id]) t.bench = BENCHES[t.id]; });
