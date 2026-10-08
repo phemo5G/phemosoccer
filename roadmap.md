@@ -3,13 +3,11 @@
 - [x] Playable top-down match: pass, shoot, dribble, tackle, goalkeepers
 - [x] Kick-Off: 2 players on one keyboard, touch controls on mobile, vs CPU option
 - [x] Invented clubs & players (real licences not available)
-- [x] Career Mode (transfers, tactics, competitions)
-- [x] Ultimate Team (player cards, packs)
-- [x] Clubs (custom player)
-- [x] Online multiplayer + accounts (needs Lovable Cloud)
-- [x] Progression over time
+- [ ] Career, Ultimate Team, Clubs, progression (menus show Coming soon)
 - [x] 3D view, slide tackle, keeper dive, chip/finesse/power shots (5-a-side)
 - [x] Top 5 real players per team; tactics menu with subs + formations
 - [x] Liverpool: Alisson GK, Van Dijk, Szoboszlai, Wirtz, Isak + Barcola on bench
 - [ ] Camera toggle (broadcast / top-down), mini shot+pass buttons, lob/through pass, skill button, 11-a-side, headers, corners
 - [ ] Real benches all clubs; 2P touch buttons on each side above game; fouls -> free kicks/penalties
+- [ ] Online mode: two players enter the same code to be matched and play each other
+- [ ] Mobile buttons: P1 above the pitch, P2 below

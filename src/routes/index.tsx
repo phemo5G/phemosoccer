@@ -16,7 +16,6 @@ const modes = [
   { name: "Career Mode", note: "Coming soon" },
   { name: "Ultimate Team", note: "Coming soon" },
   { name: "Clubs", note: "Coming soon" },
-  { name: "Online", note: "Coming soon" },
 ];
 
 function Home() {
@@ -31,6 +30,10 @@ function Home() {
           <span className="text-muted-foreground">Any team. 2 players on one device, or vs CPU.</span>
         </Link>
         <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Link to="/online" className="mode-card">
+            <span className="display text-2xl">Online</span>
+            <span className="text-xs uppercase tracking-widest text-primary">Play with a code</span>
+          </Link>
           {modes.map((m) => (
             <div key={m.name} className="mode-card">
               <span className="display text-2xl">{m.name}</span>
@@ -38,6 +41,7 @@ function Home() {
             </div>
           ))}
         </div>
+
       </div>
     </main>
   );
