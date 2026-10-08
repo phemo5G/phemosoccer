@@ -4,18 +4,37 @@ import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HAL
 import { benchFor } from "@/lib/teams";
 import type { Team } from "@/lib/teams";
 
-type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void };
+/** Online link: host simulates and streams state; guest streams its controller. */
+export type Net = {
+  role: "host" | "guest";
+  send: (event: "pad" | "state", payload: unknown) => void;
+  remotePad: { current: Pad | null };
+  remoteState: { current: unknown };
+  peerLeft: boolean;
+};
+
+type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net };
 
 const emptyPad = (): Pad => ({ dx: 0, dy: 0, pass: false, shoot: false });
+const ACTIONS = ["pass", "shoot", "finesse", "chip", "tackle", "lob", "through", "skill"] as const;
+type Action = (typeof ACTIONS)[number];
+// keyboard: [up, down, left, right, ...ACTIONS]
+const KEYS1 = ["w", "s", "a", "d", "f", "g", "h", "r", "e", "t", "y", "q"];
+const KEYS2 = ["arrowup", "arrowdown", "arrowleft", "arrowright", "k", "l", "o", "i", "j", "u", "m", "n"];
 
-export function Match({ home, away, twoPlayer, onExit }: Props) {
+let CAM: "broadcast" | "top" = "broadcast";
+
+export function Match({ home, away, twoPlayer, onExit, net }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<State | null>(null);
   const pads = useRef<[Pad, Pad]>([emptyPad(), emptyPad()]);
-  const [hud, setHud] = useState({ score: [0, 0], min: 0, flash: "", over: false });
+  const [hud, setHud] = useState({ score: [0, 0], min: 0, flash: "", over: false, left: false });
   const [paused, setPaused] = useState(false);
+  const [cam, setCam] = useState<"broadcast" | "top">("broadcast");
+  CAM = cam;
   const pausedRef = useRef(false);
-  pausedRef.current = paused;
+  pausedRef.current = paused && !net;
+  const guest = net?.role === "guest";
 
   useEffect(() => {
     stateRef.current = createState(home, away);
@@ -27,45 +46,63 @@ export function Match({ home, away, twoPlayer, onExit }: Props) {
       if (!keys.has(k)) edge.add(k);
       keys.add(k);
       if (k === "escape" || k === "p") setPaused((v) => !v);
+      if (k === "c") setCam((c) => (c === "broadcast" ? "top" : "broadcast"));
     };
     const up = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
 
-    let raf = 0, last = performance.now(), hudT = 0;
+    const read = (map: string[], touch: Pad, extra?: string[]): Pad => {
+      const has = (i: number) => keys.has(map[i]!) || (!!extra && keys.has(extra[i]!));
+      const ed = (i: number) => edge.has(map[i]!) || (!!extra && edge.has(extra[i]!));
+      const dx = Math.max(-1, Math.min(1, (has(3) ? 1 : 0) - (has(2) ? 1 : 0) + touch.dx));
+      const dy = Math.max(-1, Math.min(1, (has(1) ? 1 : 0) - (has(0) ? 1 : 0) + touch.dy));
+      const pad: Pad = { dx, dy, pass: false, shoot: false };
+      ACTIONS.forEach((a, j) => { (pad as Record<Action, boolean>)[a] = ed(4 + j) || !!touch[a]; (touch as Record<Action, boolean>)[a] = false; });
+      if (extra && edge.has(" ")) pad.pass = true;
+      return pad;
+    };
+
+    let raf = 0, last = performance.now(), hudT = 0, netT = 0;
     const loop = (now: number) => {
-      const dt = (now - last) / 1000; last = now;
-      const s = stateRef.current!;
-      const kp = (u: string, d: string, l: string, r: string, pa: string, sh: string, fi: string, ch: string, tk: string, touch: Pad): Pad => {
-        let dx = (keys.has(r) ? 1 : 0) - (keys.has(l) ? 1 : 0) + touch.dx;
-        let dy = (keys.has(d) ? 1 : 0) - (keys.has(u) ? 1 : 0) + touch.dy;
-        dx = Math.max(-1, Math.min(1, dx)); dy = Math.max(-1, Math.min(1, dy));
-        const pad: Pad = { dx, dy, pass: edge.has(pa) || touch.pass, shoot: edge.has(sh) || touch.shoot, finesse: edge.has(fi) || !!touch.finesse, chip: edge.has(ch) || !!touch.chip, tackle: edge.has(tk) || !!touch.tackle };
-        touch.pass = touch.shoot = touch.finesse = touch.chip = touch.tackle = false;
-        return pad;
-      };
-      const p1 = kp("w", "s", "a", "d", "f", "g", "h", "r", "e", pads.current[0]);
-      const p2 = twoPlayer ? kp("arrowup", "arrowdown", "arrowleft", "arrowright", "k", "l", "o", "i", "j", pads.current[1]) : null;
-      // single player: arrows also drive P1
-      if (!twoPlayer) {
-        p1.dx = Math.max(-1, Math.min(1, p1.dx + (keys.has("arrowright") ? 1 : 0) - (keys.has("arrowleft") ? 1 : 0)));
-        p1.dy = Math.max(-1, Math.min(1, p1.dy + (keys.has("arrowdown") ? 1 : 0) - (keys.has("arrowup") ? 1 : 0)));
-        p1.pass ||= edge.has("k") || edge.has(" "); p1.shoot ||= edge.has("l"); p1.finesse ||= edge.has("o"); p1.chip ||= edge.has("i"); p1.tackle ||= edge.has("j");
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      let s = stateRef.current!;
+      if (net) {
+        const mine = read(KEYS1, pads.current[guest ? 1 : 0], KEYS2);
+        netT += dt;
+        if (guest) {
+          // accumulate presses between sends so taps aren't lost
+          const acc = pads.current[0];
+          acc.dx = mine.dx; acc.dy = mine.dy;
+          ACTIONS.forEach((a) => { if (mine[a]) (acc as Record<Action, boolean>)[a] = true; });
+          if (netT > 0.05) { netT = 0; net.send("pad", { ...acc }); ACTIONS.forEach((a) => ((acc as Record<Action, boolean>)[a] = false)); }
+          if (net.remoteState.current) { s = net.remoteState.current as State; stateRef.current = s; }
+        } else {
+          const rp = net.remotePad.current;
+          const p2: Pad = rp ? { ...rp } : emptyPad();
+          if (rp) ACTIONS.forEach((a) => ((rp as Record<Action, boolean>)[a] = false));
+          step(s, dt, [mine, p2]);
+          if (netT > 0.08) { netT = 0; net.send("state", s); }
+        }
+      } else {
+        const p1 = read(KEYS1, pads.current[0], twoPlayer ? undefined : KEYS2);
+        const p2 = twoPlayer ? read(KEYS2, pads.current[1]) : null;
+        if (!pausedRef.current) step(s, dt, [p1, p2]);
       }
       edge.clear();
-      if (!pausedRef.current) step(s, dt, [p1, p2]);
       draw(canvasRef.current, s, home, away, twoPlayer);
       hudT += dt;
       if (hudT > 0.2) {
         hudT = 0;
-        setHud({ score: [...s.score], min: Math.min(90, Math.floor((s.time / s.duration) * 90)), flash: s.flash, over: s.over });
+        setHud({ score: [...s.score], min: Math.min(90, Math.floor((s.time / s.duration) * 90)), flash: s.flash, over: s.over, left: !!net?.peerLeft });
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
-  }, [home, away, twoPlayer]);
+  }, [home, away, twoPlayer, net, guest]);
 
+  const showMenu = paused || hud.over || hud.left;
   return (
     <div className="match-shell">
       <div className="scoreboard">
@@ -73,31 +110,35 @@ export function Match({ home, away, twoPlayer, onExit }: Props) {
         <span className="sb-score">{hud.score[0]} – {hud.score[1]}</span>
         <span className="sb-team">{away.short}<i style={{ background: away.primary }} /></span>
         <span className="sb-clock">{hud.min}'</span>
-        <button className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : "Pause"}</button>
+        <button className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</button>
+        <button className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</button>
+      </div>
+      <div className="touch-row">
+        {(!net || !guest) && <TouchPad pad={pads.current[0]} label="P1" />}
+        {((twoPlayer && !net) || guest) && <TouchPad pad={pads.current[1]} label="P2" />}
       </div>
       <div className="pitch-wrap">
         <canvas ref={canvasRef} width={CW} height={CH} className="pitch-canvas" />
         {hud.flash && !hud.over && <div className="flash">{hud.flash}</div>}
-        {(paused || hud.over) && (
+        {showMenu && (
           <div className="overlay">
-            <h2 className="display text-6xl">{hud.over ? "Full time" : "Paused"}</h2>
+            <h2 className="display text-6xl">{hud.left ? "Opponent left" : hud.over ? "Full time" : net ? "Menu" : "Paused"}</h2>
             <p className="display text-4xl">{home.short} {hud.score[0]} – {hud.score[1]} {away.short}</p>
+            {net && <p className="opacity-80">You are {guest ? `P2 · ${away.name}` : `P1 · ${home.name}`}</p>}
             <div className="flex gap-3">
-              {!hud.over && <button className="btn-primary" onClick={() => setPaused(false)}>Resume</button>}
-              <button className="btn-primary" onClick={onExit}>New match</button>
+              {!hud.over && !hud.left && <button className="btn-primary" onClick={() => setPaused(false)}>Resume</button>}
+              <button className="btn-primary" onClick={onExit}>{net ? "Leave match" : "New match"}</button>
               <Link to="/" className="btn-ghost">Main menu</Link>
             </div>
-            {!hud.over && stateRef.current && <Tactics s={stateRef.current} team={0} club={home} />}
-            {!hud.over && twoPlayer && stateRef.current && <Tactics s={stateRef.current} team={1} club={away} />}
+            {!hud.over && !guest && stateRef.current && <Tactics s={stateRef.current} team={0} club={home} />}
+            {!hud.over && twoPlayer && !net && stateRef.current && <Tactics s={stateRef.current} team={1} club={away} />}
           </div>
         )}
       </div>
-      <div className="touch-row">
-        <TouchPad pad={pads.current[0]} label="P1" />
-        {twoPlayer && <TouchPad pad={pads.current[1]} label="P2" />}
-      </div>
       <p className="keys-hint">
-        P1: WASD · F pass · G power · H finesse · R chip · E slide{twoPlayer ? " — P2: Arrows · K pass · L power · O finesse · I chip · J slide" : " (arrows, Space, L/O/I/J also work)"} · P pause / tactics
+        {net
+          ? "WASD/Arrows move · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide · C camera"
+          : <>P1: WASD · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide{twoPlayer ? " — P2: Arrows · K pass · U lob · M through · L power · O finesse · I chip · N skill · J slide" : " (arrows + Space also work)"} · C camera · P pause</>}
       </p>
     </div>
   );
@@ -105,10 +146,10 @@ export function Match({ home, away, twoPlayer, onExit }: Props) {
 
 function Tactics({ s, team, club }: { s: State; team: 0 | 1; club: Team }) {
   const [, force] = useState(0);
-  const [form, setForm] = useState("Diamond 1-2-1");
+  const [form, setForm] = useState("4-4-2");
   const [slot, setSlot] = useState<number | null>(null);
   const squad = s.players.filter((p) => p.team === team);
-  const bench = benchFor(club).filter((n) => !squad.some((p) => p.name === n));
+  const bench = benchFor(club).slice(0, 4).filter((n) => !squad.some((p) => p.name === n));
   return (
     <div className="w-full max-w-xl rounded-lg bg-background/80 p-3 text-left text-sm">
       <div className="mb-2 font-bold">{club.name} tactics</div>
@@ -145,24 +186,34 @@ function TouchPad({ pad, label }: { pad: Pad; label: string }) {
     pad.dx = x; pad.dy = y; setKnob({ x, y });
   };
   const end = () => { pad.dx = pad.dy = 0; setKnob({ x: 0, y: 0 }); };
+  const b = (a: Action) => () => { (pad as Record<Action, boolean>)[a] = true; };
   return (
     <div className="touchpad">
       <div ref={baseRef} className="stick" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }} onPointerMove={(e) => e.buttons && move(e)} onPointerUp={end} onPointerCancel={end}>
         <div className="knob" style={{ transform: `translate(${knob.x * 28}px, ${knob.y * 28}px)` }}>{label}</div>
       </div>
-      <div className="grid grid-cols-3 gap-1">
-        <button className="tbtn" onPointerDown={() => (pad.pass = true)}>Pass</button>
-        <button className="tbtn tbtn-shoot" onPointerDown={() => (pad.shoot = true)}>Power</button>
-        <button className="tbtn" onPointerDown={() => (pad.finesse = true)}>Finesse</button>
-        <button className="tbtn" onPointerDown={() => (pad.chip = true)}>Chip</button>
-        <button className="tbtn" onPointerDown={() => (pad.tackle = true)}>Slide</button>
+      <div className="cluster">
+        <button className="mini" style={{ gridArea: "u" }} onPointerDown={b("lob")}>Lob</button>
+        <button className="tbtn" style={{ gridArea: "m" }} onPointerDown={b("pass")}>Pass</button>
+        <button className="mini" style={{ gridArea: "s" }} onPointerDown={b("through")}>Thru</button>
+      </div>
+      <div className="cluster">
+        <button className="mini" style={{ gridArea: "u" }} onPointerDown={b("finesse")}>Fin</button>
+        <button className="tbtn tbtn-shoot" style={{ gridArea: "m" }} onPointerDown={b("shoot")}>Shoot</button>
+        <button className="mini" style={{ gridArea: "s" }} onPointerDown={b("chip")}>Chip</button>
+      </div>
+      <div className="flex flex-col gap-1">
+        <button className="mini" onPointerDown={b("skill")}>Skill</button>
+        <button className="mini" onPointerDown={b("tackle")}>Slide</button>
       </div>
     </div>
   );
 }
 
 const CW = 1100, CH = 560, CX = CW / 2, HY = -420, CAMH = 900, FOC = 700;
+const TS = Math.min(CW / (W + 90), CH / (H + 70));
 function proj(x: number, y: number, z = 0) {
+  if (CAM === "top") return { x: CX + (x - W / 2) * TS, y: CH / 2 + (y - H / 2) * TS - z * TS * 0.7, s: TS * 1.1 };
   const sc = FOC / (FOC + (H - y));
   return { x: CX + (x - W / 2) * sc, y: HY + (CAMH - z) * sc, s: sc };
 }

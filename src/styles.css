@@ -179,3 +179,6 @@ body { font-family: var(--font-sans); }
 .tbtn-shoot { background: var(--primary); color: var(--primary-foreground); }
 .keys-hint { font-size:.75rem; color: var(--muted-foreground); text-align:center; }
 @media (hover:hover) and (pointer:fine) { .touch-row { display:none; } }
+.cluster { display:grid; grid-template-areas: "u u" "m s"; gap:.25rem; align-items:center; }
+.mini { min-width:44px; height:34px; padding:0 .4rem; border-radius:999px; background: var(--surface); border:1px solid var(--border); font-weight:800; font-size:.65rem; text-transform:uppercase; touch-action:none; }
+.touch-row .touchpad:last-child:not(:first-child) { flex-direction: row-reverse; }
