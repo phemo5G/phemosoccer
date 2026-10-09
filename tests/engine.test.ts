@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createState, step, W, H, GOAL_HALF, CROSSBAR, SKILLS } from "./engine";
-import { TEAMS } from "./teams";
+import { createState, step, W, H, GOAL_HALF, CROSSBAR, SKILLS } from "../src/lib/engine";
+import { TEAMS } from "../src/lib/teams";
 
 function fixture() {
   const home = TEAMS.find((t) => t.id === "phemo"), away = TEAMS.find((t) => t.id === "liv");

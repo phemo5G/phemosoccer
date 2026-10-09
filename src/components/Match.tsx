@@ -39,8 +39,9 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
 
   useEffect(() => {
     stateRef.current = createState(home, away);
+    window.scrollTo(0, 0);
     const css = getComputedStyle(document.documentElement);
-    Object.keys(PALETTE).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
+    (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
     const keys = new Set<string>();
     const edge = new Set<string>();
     const down = (e: KeyboardEvent) => {
@@ -216,7 +217,7 @@ function TouchPad({ pad, label }: { pad: Pad; label: string }) {
 
 const CW = 1700, CH = 900, CX = CW / 2, FOC = 1100;
 const TS = Math.min(CW / (W + 140), CH / (H + 100));
-const PALETTE: Record<string, string> = Object.fromEntries(["shadow", "p1", "p2", "sky", "surround", "grass", "stripe", "line", "net", "netLine", "chalk", "ink", "keeperHome", "keeperAway", "skin0", "skin1", "skin2", "skin3", "skin4", "hair0", "hair1", "hair2", "hair3"].map((key) => [key, ""]));
+const PALETTE = { shadow: "", p1: "", p2: "", sky: "", surround: "", grass: "", stripe: "", line: "", net: "", netLine: "", chalk: "", ink: "", keeperHome: "", keeperAway: "", skin0: "", skin1: "", skin2: "", skin3: "", skin4: "", hair0: "", hair1: "", hair2: "", hair3: "" };
 function identity(name: string) { return Array.from(name).reduce((hash, c) => (hash * 31 + c.charCodeAt(0)) >>> 0, 7); }
 function proj(x: number, y: number, z = 0) {
   if (CAM === "top") return { x: CX + (x - W / 2) * TS, y: CH / 2 + (y - H / 2) * TS - z * TS * 0.7, s: TS * 1.1 };
@@ -253,8 +254,8 @@ function figure(g: CanvasRenderingContext2D, p: P, kit: string, trim: string, hu
   g.translate(0, -lift); g.rotate(rot);
   const sw = p.anim === 0 ? Math.sin(p.ph * 2.2) * 0.6 : p.anim === 5 ? Math.sin((1 - p.at / 0.65) * Math.PI * (p.skill === "STEPOVERS" ? 6 : 2)) * 1.15 : 0;
   const id = identity(p.name);
-  const skin = PALETTE[`skin${id % 5}`] ?? PALETTE.skin0;
-  const hair = PALETTE[`hair${Math.floor(id / 5) % 4}`] ?? PALETTE.hair0;
+  const skin = [PALETTE.skin0, PALETTE.skin1, PALETTE.skin2, PALETTE.skin3, PALETTE.skin4][id % 5] ?? PALETTE.skin0;
+  const hair = [PALETTE.hair0, PALETTE.hair1, PALETTE.hair2, PALETTE.hair3][Math.floor(id / 5) % 4] ?? PALETTE.hair0;
   const haircut = Math.floor(id / 20) % 6;
   g.lineCap = "round";
   // legs
@@ -312,6 +313,11 @@ function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, two
     return { y: p.y, f: () => figure(g, p, p.gk ? (p.team === 0 ? PALETTE.keeperHome : PALETTE.keeperAway) : t.primary, p.gk ? PALETTE.ink : t.secondary, human, p.team === 0 ? "P1" : "P2", human && s.controlled[p.team] === i) };
   });
   const b = s.ball;
+  const viewport = c.parentElement;
+  if (viewport && c.clientWidth > viewport.clientWidth) {
+    const target = proj(b.x, b.y).x * c.clientWidth / CW - viewport.clientWidth / 2;
+    viewport.scrollLeft = Math.max(0, Math.min(c.clientWidth - viewport.clientWidth, target));
+  }
   items.push({ y: b.y, f: () => {
     const sh = proj(b.x, b.y, 0), bp = proj(b.x, b.y, b.z + 5);
     g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(sh.x, sh.y, 6 * sh.s * Math.max(0.4, 1 - b.z / 200), 2.5 * sh.s, 0, 0, Math.PI * 2); g.fill();
