@@ -1,4 +1,5 @@
 # Phemo Soccer roadmap
+- [ ] Current request: enlarge screen/pitch/goals, space controls, reward clean tackles, random visible skills, varied haircuts, add Phemo FC with player ratings
 - [x] Name the game "Phemo Soccer"
 - [x] Playable top-down match: pass, shoot, dribble, tackle, goalkeepers
 - [x] Kick-Off: 2 players on one keyboard, touch controls on mobile, vs CPU option
