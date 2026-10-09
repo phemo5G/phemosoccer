@@ -10,3 +10,6 @@
 <!-- LOVABLE:END -->
 
 - Match simulation lives in src/lib/engine.ts (pure, framework-free) and is rendered on a canvas by src/components/Match.tsx — keeps game logic testable and separate from UI.
+- Teams may supply an explicit positional lineup with individual ratings; legacy teams retain the star-slot roster mapping so custom clubs do not disrupt existing clubs.
+- Canvas colors resolve semantic CSS game tokens after mounting, and appearance is derived from player names so online peers render consistent identities without extra network data.
+- Engine regression tests live outside src and run with Bun's test runner so test-only imports do not enter the application typecheck.

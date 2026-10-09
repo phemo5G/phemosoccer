@@ -10,6 +10,8 @@ export const Route = createFileRoute("/kickoff")({
       { name: "description", content: "Pick two clubs and play a quick match, 2 players locally or against the CPU." },
       { property: "og:title", content: "Kick-Off — Phemo Soccer" },
       { property: "og:description", content: "Pick two clubs and play a quick match." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: KickOff,
@@ -21,8 +23,9 @@ function KickOff() {
   const [twoPlayer, setTwoPlayer] = useState(true);
   const [playing, setPlaying] = useState(false);
 
-  if (playing)
-    return <Match home={TEAMS[home]!} away={TEAMS[away]!} twoPlayer={twoPlayer} onExit={() => setPlaying(false)} />;
+  const homeTeam = TEAMS[home], awayTeam = TEAMS[away];
+  if (playing && homeTeam && awayTeam)
+    return <Match home={homeTeam} away={awayTeam} twoPlayer={twoPlayer} onExit={() => setPlaying(false)} />;
 
   return (
     <main className="menu-bg min-h-screen px-5 py-8">

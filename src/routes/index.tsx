@@ -7,6 +7,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Phemo Soccer: quick football matches for two players on one keyboard or phone." },
       { property: "og:title", content: "Phemo Soccer" },
       { property: "og:description", content: "Quick football matches for two players on one device." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Home,

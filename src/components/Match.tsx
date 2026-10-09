@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HALF, CROSSBAR, type Pad, type P, type State } from "@/lib/engine";
+import { Button } from "@/components/ui/button";
+import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HALF, CROSSBAR, BOX_D, BOX_HALF, type Pad, type P, type State } from "@/lib/engine";
 import { benchFor } from "@/lib/teams";
 import type { Team } from "@/lib/teams";
 
@@ -38,6 +39,9 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
 
   useEffect(() => {
     stateRef.current = createState(home, away);
+    window.scrollTo(0, 0);
+    const css = getComputedStyle(document.documentElement);
+    (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
     const keys = new Set<string>();
     const edge = new Set<string>();
     const down = (e: KeyboardEvent) => {
@@ -53,8 +57,8 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
     window.addEventListener("keyup", up);
 
     const read = (map: string[], touch: Pad, extra?: string[]): Pad => {
-      const has = (i: number) => keys.has(map[i]!) || (!!extra && keys.has(extra[i]!));
-      const ed = (i: number) => edge.has(map[i]!) || (!!extra && edge.has(extra[i]!));
+      const has = (i: number) => keys.has(map[i] ?? "") || (!!extra && keys.has(extra[i] ?? ""));
+      const ed = (i: number) => edge.has(map[i] ?? "") || (!!extra && edge.has(extra[i] ?? ""));
       const dx = Math.max(-1, Math.min(1, (has(3) ? 1 : 0) - (has(2) ? 1 : 0) + touch.dx));
       const dy = Math.max(-1, Math.min(1, (has(1) ? 1 : 0) - (has(0) ? 1 : 0) + touch.dy));
       const pad: Pad = { dx, dy, pass: false, shoot: false };
@@ -66,7 +70,8 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
     let raf = 0, last = performance.now(), hudT = 0, netT = 0;
     const loop = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      let s = stateRef.current!;
+      let s = stateRef.current;
+      if (!s) return;
       if (net) {
         const mine = read(KEYS1, pads.current[guest ? 1 : 0], KEYS2);
         netT += dt;
@@ -110,12 +115,12 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
         <span className="sb-score">{hud.score[0]} – {hud.score[1]}</span>
         <span className="sb-team">{away.short}<i style={{ background: away.primary }} /></span>
         <span className="sb-clock">{hud.min}'</span>
-        <button className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</button>
-        <button className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</button>
+        <Button variant="ghost" className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</Button>
+        <Button variant="ghost" className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</Button>
       </div>
       {(!net || !guest) && <div className="touch-row"><TouchPad pad={pads.current[0]} label="P1" /></div>}
       <div className="pitch-wrap">
-        <canvas ref={canvasRef} width={CW} height={CH} className="pitch-canvas" />
+        <div className="pitch-viewport"><canvas aria-label="Football pitch" ref={canvasRef} width={CW} height={CH} className="pitch-canvas" /></div>
         {hud.flash && !hud.over && <div className="flash">{hud.flash}</div>}
         {showMenu && (
           <div className="overlay">
@@ -123,8 +128,8 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
             <p className="display text-4xl">{home.short} {hud.score[0]} – {hud.score[1]} {away.short}</p>
             {net && <p className="opacity-80">You are {guest ? `P2 · ${away.name}` : `P1 · ${home.name}`}</p>}
             <div className="flex gap-3">
-              {!hud.over && !hud.left && <button className="btn-primary" onClick={() => setPaused(false)}>Resume</button>}
-              <button className="btn-primary" onClick={onExit}>{net ? "Leave match" : "New match"}</button>
+              {!hud.over && !hud.left && <Button variant="ghost" className="btn-primary" onClick={() => setPaused(false)}>Resume</Button>}
+              <Button variant="ghost" className="btn-primary" onClick={onExit}>{net ? "Leave match" : "New match"}</Button>
               <Link to="/" className="btn-ghost">Main menu</Link>
             </div>
             {!hud.over && !guest && stateRef.current && <Tactics s={stateRef.current} team={0} club={home} />}
@@ -153,19 +158,19 @@ function Tactics({ s, team, club }: { s: State; team: 0 | 1; club: Team }) {
       <div className="mb-2 font-bold">{club.name} tactics</div>
       <div className="mb-2 flex flex-wrap gap-1">
         {Object.keys(FORMATIONS).map((f) => (
-          <button key={f} className={f === form ? "chip chip-on" : "chip"} onClick={() => { setFormation(s, team, f); setForm(f); }}>{f}</button>
+          <Button variant="ghost" key={f} className={f === form ? "chip chip-on" : "chip"} onClick={() => { setFormation(s, team, f); setForm(f); }}>{f}</Button>
         ))}
       </div>
       <div className="mb-1 opacity-70">Tap a player, then a sub:</div>
       <div className="flex flex-wrap gap-1">
         {squad.map((p, i) => (
-          <button key={i} className={slot === i ? "chip chip-on" : "chip"} onClick={() => setSlot(i)}>{p.gk ? "GK " : ""}{p.name}</button>
+          <Button variant="ghost" key={i} className={slot === i ? "chip chip-on" : "chip"} onClick={() => setSlot(i)}>{p.position} · {p.name} · {p.rating} OVR</Button>
         ))}
       </div>
       {slot !== null && (
         <div className="mt-2 flex flex-wrap gap-1">
           {bench.map((n) => (
-            <button key={n} className="chip" onClick={() => { substitute(s, team, slot, n); setSlot(null); force((x) => x + 1); }}>↑ {n}</button>
+            <Button variant="ghost" key={n} className="chip" onClick={() => { substitute(s, team, slot, n); setSlot(null); force((x) => x + 1); }}>↑ {n}</Button>
           ))}
         </div>
       )}
@@ -177,7 +182,9 @@ function TouchPad({ pad, label }: { pad: Pad; label: string }) {
   const baseRef = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const move = (e: React.PointerEvent) => {
-    const r = baseRef.current!.getBoundingClientRect();
+    const base = baseRef.current;
+    if (!base) return;
+    const r = base.getBoundingClientRect();
     let x = (e.clientX - r.left - r.width / 2) / (r.width / 2);
     let y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
     const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
@@ -186,34 +193,37 @@ function TouchPad({ pad, label }: { pad: Pad; label: string }) {
   const end = () => { pad.dx = pad.dy = 0; setKnob({ x: 0, y: 0 }); };
   const b = (a: Action) => () => { (pad as Record<Action, boolean>)[a] = true; };
   return (
-    <div className="touchpad">
+    <div className="touchpad" aria-label={`${label} controls`}>
       <div ref={baseRef} className="stick" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }} onPointerMove={(e) => e.buttons && move(e)} onPointerUp={end} onPointerCancel={end}>
         <div className="knob" style={{ transform: `translate(${knob.x * 28}px, ${knob.y * 28}px)` }}>{label}</div>
       </div>
       <div className="cluster">
-        <button className="mini" style={{ gridArea: "u" }} onPointerDown={b("lob")}>Lob</button>
-        <button className="tbtn" style={{ gridArea: "m" }} onPointerDown={b("pass")}>Pass</button>
-        <button className="mini" style={{ gridArea: "s" }} onPointerDown={b("through")}>Thru</button>
+        <Button variant="ghost" className="mini cluster-up" onPointerDown={b("lob")}>Lob</Button>
+        <Button variant="ghost" className="tbtn cluster-main" onPointerDown={b("pass")}>Pass</Button>
+        <Button variant="ghost" className="mini cluster-side" aria-label={`${label} through pass`} onPointerDown={b("through")}>Thru</Button>
       </div>
       <div className="cluster">
-        <button className="mini" style={{ gridArea: "u" }} onPointerDown={b("finesse")}>Fin</button>
-        <button className="tbtn tbtn-shoot" style={{ gridArea: "m" }} onPointerDown={b("shoot")}>Shoot</button>
-        <button className="mini" style={{ gridArea: "s" }} onPointerDown={b("chip")}>Chip</button>
+        <Button variant="ghost" className="mini cluster-up" aria-label={`${label} finesse shot`} onPointerDown={b("finesse")}>Fin</Button>
+        <Button variant="ghost" className="tbtn tbtn-shoot cluster-main" onPointerDown={b("shoot")}>Shoot</Button>
+        <Button variant="ghost" className="mini cluster-side" onPointerDown={b("chip")}>Chip</Button>
       </div>
-      <div className="flex flex-col gap-1">
-        <button className="mini" onPointerDown={b("skill")}>Skill</button>
-        <button className="mini" onPointerDown={b("tackle")}>Slide</button>
+      <div className="skill-controls">
+        <Button variant="ghost" className="mini" aria-label={`${label} random skill move`} onPointerDown={b("skill")}>Skill</Button>
+        <Button variant="ghost" className="mini" onPointerDown={b("tackle")}>Slide</Button>
       </div>
     </div>
   );
 }
 
-const CW = 1100, CH = 560, CX = CW / 2, HY = -420, CAMH = 900, FOC = 700;
-const TS = Math.min(CW / (W + 90), CH / (H + 70));
+const CW = 1700, CH = 900, CX = CW / 2, FOC = 1100;
+const TS = Math.min(CW / (W + 140), CH / (H + 100));
+const PALETTE = { shadow: "", p1: "", p2: "", sky: "", surround: "", grass: "", stripe: "", line: "", net: "", netLine: "", chalk: "", ink: "", keeperHome: "", keeperAway: "", skin0: "", skin1: "", skin2: "", skin3: "", skin4: "", hair0: "", hair1: "", hair2: "", hair3: "" };
+function identity(name: string) { return Array.from(name).reduce((hash, c) => (hash * 31 + c.charCodeAt(0)) >>> 0, 7); }
 function proj(x: number, y: number, z = 0) {
   if (CAM === "top") return { x: CX + (x - W / 2) * TS, y: CH / 2 + (y - H / 2) * TS - z * TS * 0.7, s: TS * 1.1 };
   const sc = FOC / (FOC + (H - y));
-  return { x: CX + (x - W / 2) * sc, y: HY + (CAMH - z) * sc, s: sc };
+  const far = FOC / (FOC + H), scale = (CW - 180) / W;
+  return { x: CX + (x - W / 2) * sc * scale, y: 95 + ((sc - far) / (1 - far)) * (CH - 180) - z * sc * scale, s: sc * scale };
 }
 function quad(g: CanvasRenderingContext2D, pts: [number, number, number][]) {
   g.beginPath(); pts.forEach(([x, y, z], i) => { const p = proj(x, y, z); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath();
@@ -222,26 +232,31 @@ function rect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 
 function drawGoal(g: CanvasRenderingContext2D, gx: number, back: number) {
   const y0 = H / 2 - GOAL_HALF, y1 = H / 2 + GOAL_HALF, cb = CROSSBAR;
-  g.fillStyle = "rgba(255,255,255,0.12)"; g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1;
+  g.fillStyle = PALETTE.net; g.strokeStyle = PALETTE.netLine; g.lineWidth = 1;
   quad(g, [[back, y0, 0], [back, y1, 0], [back, y1, cb], [back, y0, cb]]); g.fill(); g.stroke();
   quad(g, [[gx, y0, cb], [back, y0, cb], [back, y1, cb], [gx, y1, cb]]); g.fill(); g.stroke();
   for (let i = 1; i < 8; i++) { const yy = y0 + ((y1 - y0) * i) / 8; quad(g, [[back, yy, 0], [back, yy, cb]]); g.stroke(); }
-  g.strokeStyle = "#ffffff"; g.lineWidth = 4;
+  g.strokeStyle = PALETTE.chalk; g.lineWidth = 4;
   quad(g, [[gx, y0, 0], [gx, y0, cb], [gx, y1, cb], [gx, y1, 0]]); g.stroke();
 }
 
 function figure(g: CanvasRenderingContext2D, p: P, kit: string, trim: string, human: boolean, tag: string, ctl: boolean) {
   const base = proj(p.x, p.y, 0), s = base.s * 1.5;
-  g.fillStyle = "rgba(0,0,0,0.3)"; g.beginPath(); g.ellipse(base.x, base.y, 13 * s, 4.5 * s, 0, 0, Math.PI * 2); g.fill();
-  if (ctl) { g.strokeStyle = tag === "P1" ? "#ffe14a" : "#4ae3ff"; g.lineWidth = 3; g.beginPath(); g.ellipse(base.x, base.y, 17 * s, 6 * s, 0, 0, Math.PI * 2); g.stroke(); }
+  g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(base.x, base.y, 13 * s, 4.5 * s, 0, 0, Math.PI * 2); g.fill();
+  if (ctl) { g.strokeStyle = tag === "P1" ? PALETTE.p1 : PALETTE.p2; g.lineWidth = 3; g.beginPath(); g.ellipse(base.x, base.y, 17 * s, 6 * s, 0, 0, Math.PI * 2); g.stroke(); }
   const face = p.fx >= 0 ? 1 : -1;
   g.save(); g.translate(base.x, base.y); g.scale(s, s);
   let rot = 0, lift = 0;
   if (p.anim === 1) { rot = face * 1.35; lift = 4; }
   if (p.anim === 2) { const t = 1 - Math.max(0, p.at) / 0.65; rot = (p.dvy >= 0 ? 1 : -1) * Math.min(1.45, t * 4) * (p.team === 0 ? 1 : -1); lift = Math.sin(Math.min(1, t * 1.6) * Math.PI) * 18 + 4; }
+  if (p.anim === 4) lift = Math.sin((1 - Math.max(0, p.at) / 0.4) * Math.PI) * 20;
+  if (p.anim === 5 && p.skill === "ROULETTE") rot = Math.sin((1 - p.at / 0.65) * Math.PI * 2) * 0.5;
   g.translate(0, -lift); g.rotate(rot);
-  const sw = p.anim === 0 ? Math.sin(p.ph * 2.2) * 0.6 : 0;
-  const skin = "#c98e62";
+  const sw = p.anim === 0 ? Math.sin(p.ph * 2.2) * 0.6 : p.anim === 5 ? Math.sin((1 - p.at / 0.65) * Math.PI * (p.skill === "STEPOVERS" ? 6 : 2)) * 1.15 : 0;
+  const id = identity(p.name);
+  const skin = [PALETTE.skin0, PALETTE.skin1, PALETTE.skin2, PALETTE.skin3, PALETTE.skin4][id % 5] ?? PALETTE.skin0;
+  const hair = [PALETTE.hair0, PALETTE.hair1, PALETTE.hair2, PALETTE.hair3][Math.floor(id / 5) % 4] ?? PALETTE.hair0;
+  const haircut = Math.floor(id / 20) % 6;
   g.lineCap = "round";
   // legs
   const leg = (ang: number, col: string) => { g.strokeStyle = col; g.lineWidth = 4.2; g.beginPath(); g.moveTo(0, -16); g.lineTo(Math.sin(ang) * 15, -16 + Math.cos(ang) * 15); g.stroke(); };
@@ -258,43 +273,57 @@ function figure(g: CanvasRenderingContext2D, p: P, kit: string, trim: string, hu
   g.beginPath(); g.moveTo(-6, -33); g.lineTo(-6 - Math.sin(arm) * 10, -33 + Math.cos(arm) * 10); g.stroke();
   g.beginPath(); g.moveTo(6, -33); g.lineTo(6 + Math.sin(-arm) * -10, -33 + Math.cos(arm) * 10); g.stroke();
   g.fillStyle = skin; g.beginPath(); g.arc(0, -41, 5, 0, Math.PI * 2); g.fill();
-  g.fillStyle = "#2a1a10"; g.beginPath(); g.arc(0, -43, 5, Math.PI, 0); g.fill();
+  g.fillStyle = hair;
+  if (haircut === 0) { g.beginPath(); g.arc(0, -43, 5, Math.PI, 0); g.fill(); } // cropped
+  else if (haircut === 1) { g.fillRect(-2, -50, 4, 9); } // mohawk
+  else if (haircut === 2) { for (let j = -2; j <= 2; j++) { g.beginPath(); g.arc(j * 2.2, -46 + Math.abs(j), 2.7, 0, Math.PI * 2); g.fill(); } } // curls
+  else if (haircut === 3) { g.beginPath(); g.ellipse(0, -44, 6.5, 5, 0, Math.PI, Math.PI * 2); g.fill(); g.fillRect(-6, -45, 2, 9); g.fillRect(4, -45, 2, 9); } // long
+  else if (haircut === 4) { g.beginPath(); g.arc(0, -44, 5, Math.PI, 0); g.fill(); g.beginPath(); g.arc(-face * 5, -47, 3, 0, Math.PI * 2); g.fill(); } // bun
+  // sixth style: shaved head
+
   g.fillStyle = trim; g.font = "bold 8px Barlow, sans-serif"; g.textAlign = "center"; g.fillText(String(p.num), 0, -25);
   g.restore();
   if (human && ctl) {
-    g.fillStyle = tag === "P1" ? "#ffe14a" : "#4ae3ff"; g.font = "bold 12px Barlow, sans-serif"; g.textAlign = "center";
+    g.fillStyle = tag === "P1" ? PALETTE.p1 : PALETTE.p2; g.font = "bold 12px Barlow, sans-serif"; g.textAlign = "center";
     g.fillText(`${tag} · ${p.name}`, base.x, base.y - 58 * s);
+    if (p.anim === 5) { g.font = "bold 11px Barlow, sans-serif"; g.fillText(p.skill, base.x, base.y - 73 * s); }
   }
 }
 
 function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, twoPlayer: boolean) {
   if (!c) return;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  const sky = g.createLinearGradient(0, 0, 0, CH); sky.addColorStop(0, "#0d1b14"); sky.addColorStop(1, "#1d5a2c");
+  const sky = g.createLinearGradient(0, 0, 0, CH); sky.addColorStop(0, PALETTE.sky); sky.addColorStop(1, PALETTE.surround);
   g.fillStyle = sky; g.fillRect(0, 0, CW, CH);
-  g.fillStyle = "#1d5a2c"; quad(g, [[-80, -40, 0], [W + 80, -40, 0], [W + 80, H + 30, 0], [-80, H + 30, 0]]); g.fill();
-  for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? "#2a7a3d" : "#2f8544"; rect(g, (i * W) / 10, 0, W / 10, H); g.fill(); }
-  g.strokeStyle = "rgba(255,255,255,0.85)"; g.lineWidth = 2;
+  g.fillStyle = PALETTE.surround; quad(g, [[-80, -40, 0], [W + 80, -40, 0], [W + 80, H + 30, 0], [-80, H + 30, 0]]); g.fill();
+  for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? PALETTE.grass : PALETTE.stripe; rect(g, (i * W) / 10, 0, W / 10, H); g.fill(); }
+  g.strokeStyle = PALETTE.line; g.lineWidth = 2;
   rect(g, 0, 0, W, H); g.stroke();
   quad(g, [[W / 2, 0, 0], [W / 2, H, 0]]); g.stroke();
   g.beginPath(); for (let a = 0; a <= 40; a++) { const t = (a / 40) * Math.PI * 2, p = proj(W / 2 + Math.cos(t) * 70, H / 2 + Math.sin(t) * 70); a ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.stroke();
-  rect(g, 0, H / 2 - 150, 140, 300); g.stroke(); rect(g, W - 140, H / 2 - 150, 140, 300); g.stroke();
-  rect(g, 0, H / 2 - 80, 50, 160); g.stroke(); rect(g, W - 50, H / 2 - 80, 50, 160); g.stroke();
-  drawGoal(g, 0, -24); drawGoal(g, W, W + 24);
+  rect(g, 0, H / 2 - BOX_HALF, BOX_D, BOX_HALF * 2); g.stroke(); rect(g, W - BOX_D, H / 2 - BOX_HALF, BOX_D, BOX_HALF * 2); g.stroke();
+  rect(g, 0, H / 2 - GOAL_HALF - 20, 65, (GOAL_HALF + 20) * 2); g.stroke(); rect(g, W - 65, H / 2 - GOAL_HALF - 20, 65, (GOAL_HALF + 20) * 2); g.stroke();
+  drawGoal(g, 0, -40); drawGoal(g, W, W + 40);
 
   const items: { y: number; f: () => void }[] = s.players.map((p, i) => {
     const t = p.team === 0 ? home : away;
     const human = p.team === 0 || twoPlayer;
-    return { y: p.y, f: () => figure(g, p, p.gk ? (p.team === 0 ? "#2ecc71" : "#f39c12") : t.primary, p.gk ? "#111111" : t.secondary, human, p.team === 0 ? "P1" : "P2", human && s.controlled[p.team] === i) };
+    return { y: p.y, f: () => figure(g, p, p.gk ? (p.team === 0 ? PALETTE.keeperHome : PALETTE.keeperAway) : t.primary, p.gk ? PALETTE.ink : t.secondary, human, p.team === 0 ? "P1" : "P2", human && s.controlled[p.team] === i) };
   });
   const b = s.ball;
+  const viewport = c.parentElement;
+  if (viewport && c.clientWidth > viewport.clientWidth) {
+    const target = proj(b.x, b.y).x * c.clientWidth / CW - viewport.clientWidth / 2;
+    viewport.scrollLeft = Math.max(0, Math.min(c.clientWidth - viewport.clientWidth, target));
+  }
   items.push({ y: b.y, f: () => {
     const sh = proj(b.x, b.y, 0), bp = proj(b.x, b.y, b.z + 5);
-    g.fillStyle = "rgba(0,0,0,0.35)"; g.beginPath(); g.ellipse(sh.x, sh.y, 6 * sh.s * Math.max(0.4, 1 - b.z / 200), 2.5 * sh.s, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = "#ffffff"; g.beginPath(); g.arc(bp.x, bp.y, 6 * bp.s, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = "#111"; g.lineWidth = 1; g.stroke();
-    g.fillStyle = "#111"; g.beginPath(); g.arc(bp.x + Math.sin(b.x / 8) * 2 * bp.s, bp.y, 2 * bp.s, 0, Math.PI * 2); g.fill();
+    g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(sh.x, sh.y, 6 * sh.s * Math.max(0.4, 1 - b.z / 200), 2.5 * sh.s, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = PALETTE.chalk; g.beginPath(); g.arc(bp.x, bp.y, 6 * bp.s, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = PALETTE.ink; g.lineWidth = 1; g.stroke();
+    g.fillStyle = PALETTE.ink; g.beginPath(); g.arc(bp.x + Math.sin(b.x / 8) * 2 * bp.s, bp.y, 2 * bp.s, 0, Math.PI * 2); g.fill();
   } });
   items.sort((a, b2) => a.y - b2.y).forEach((it) => it.f());
 }

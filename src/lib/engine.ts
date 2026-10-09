@@ -1,18 +1,18 @@
 import type { Team } from "./teams";
 
-export const W = 1300;
-export const H = 820;
-export const GOAL_HALF = 80;
+export const W = 1700;
+export const H = 1050;
+export const GOAL_HALF = 115;
 const PR = 11; // player radius
-export const CROSSBAR = 44;
+export const CROSSBAR = 58;
 
-function slide(p: P) { p.anim = 1; p.at = 0.5; p.dvx = p.fx * 420; p.dvy = p.fy * 420; }
+function slide(p: P) { p.anim = 1; p.at = 0.5; p.cleanTackle = false; p.dvx = p.fx * 420; p.dvy = p.fy * 420; }
 
 export type Pad = { dx: number; dy: number; pass: boolean; shoot: boolean; finesse?: boolean; chip?: boolean; tackle?: boolean; lob?: boolean; through?: boolean; skill?: boolean };
 export type Kick = "pass" | "power" | "finesse" | "chip" | "lob" | "through";
 /** anim: 0 run, 1 slide tackle, 2 keeper dive, 3 kick, 4 header, 5 skill move, 6 fallen */
-const SKILLS = ["RAINBOW FLICK", "STEPOVER", "ROULETTE", "ELASTICO"];
-export type P = { x: number; y: number; vx: number; vy: number; fx: number; fy: number; team: 0 | 1; gk: boolean; hx: number; hy: number; num: number; cd: number; name: string; anim: number; at: number; dvx: number; dvy: number; ph: number; skill: string };
+export const SKILLS = ["RAINBOW FLICK", "STEPOVERS", "ROULETTE", "ELASTICO", "HEEL FLICK"];
+export type P = { x: number; y: number; vx: number; vy: number; fx: number; fy: number; team: 0 | 1; gk: boolean; hx: number; hy: number; num: number; cd: number; name: string; anim: number; at: number; dvx: number; dvy: number; ph: number; skill: string; rating: number; position: string; cleanTackle: boolean };
 export type State = {
   players: P[];
   ball: { x: number; y: number; vx: number; vy: number; owner: number; z: number; vz: number; spin: number };
@@ -47,9 +47,10 @@ export function createState(a: Team, b: Team, duration = 180): State {
     const extra = (t.bench ?? []).slice(4);
     FORM.forEach(([fx, fy, gk], i) => {
       const si = STAR_SLOT.indexOf(i), fi = FILL_SLOT.indexOf(i);
-      const name = si >= 0 ? t.players[si] ?? `${t.short} ${i + 1}` : extra[fi] ?? `${t.short} #${i + 1}`;
+      const member = t.lineup?.[i];
+      const name = member?.name ?? (si >= 0 ? t.players[si] ?? `${t.short} ${i + 1}` : extra[fi] ?? `${t.short} #${i + 1}`);
       const hx = ti === 0 ? fx * W : W - fx * W;
-      players.push({ x: hx, y: fy * H, vx: 0, vy: 0, fx: ti === 0 ? 1 : -1, fy: 0, team: ti as 0 | 1, gk, hx, hy: fy * H, num: i + 1, cd: 0, name, anim: 0, at: 0, dvx: 0, dvy: 0, ph: Math.random() * 6, skill: "" });
+      players.push({ x: hx, y: fy * H, vx: 0, vy: 0, fx: ti === 0 ? 1 : -1, fy: 0, team: ti as 0 | 1, gk, hx, hy: fy * H, num: i + 1, cd: 0, name, anim: 0, at: 0, dvx: 0, dvy: 0, ph: Math.random() * 6, skill: "", rating: member?.rating ?? t.rating, position: member?.position ?? (gk ? "GK" : i < 5 ? "DEF" : i < 9 ? "MID" : "FWD"), cleanTackle: false });
     });
   });
   const s: State = { players, ball: { x: W / 2, y: H / 2, vx: 0, vy: 0, owner: -1, z: 0, vz: 0, spin: 0 }, lastShot: "", lastTouch: 0, setPiece: -1, spKind: "", score: [0, 0], time: 0, duration, controlled: [9, 20], pause: 0, flash: "", over: false };
@@ -241,7 +242,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       if (m > 0.15) { tx = p.x + (pad.dx / m) * 50; ty = p.y + (pad.dy / m) * 50; }
       const aim = m > 0.15 ? pad.dy / m : 0;
       if (has && p.cd <= 0) {
-        if (pad.skill && p.anim !== 5 && s.setPiece < 0) { p.anim = 5; p.at = 0.65; p.skill = SKILLS[Math.floor(Math.random() * SKILLS.length)]!; }
+        if (pad.skill && p.anim !== 5 && s.setPiece < 0) { p.anim = 5; p.at = 0.65; p.skill = SKILLS[Math.floor(Math.random() * SKILLS.length)] ?? "STEPOVERS"; }
         else if (pad.shoot) kick(s, i, "power", aim);
         else if (pad.lob) kick(s, i, "lob", 0);
         else if (pad.through) kick(s, i, "through", 0);
@@ -336,11 +337,12 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     if (b.owner >= 0) {
       const o = s.players[b.owner]!;
       if (o.team === q.team) return;
-      const fromBehind = q.fx * o.fx + q.fy * o.fy > 0.5;
-      if (fromBehind || Math.random() < 0.2) { const vi = b.owner; o.anim = 6; o.at = 0.6; foul(s, vi, o.x, o.y); fouled = true; return; }
+      // Reaching the ball first is a clean challenge, including from behind.
       o.cd = 0.8;
     }
     b.owner = -1;
+    q.cleanTackle = true;
+    s.lastTouch = q.team;
     b.vx = q.dvx * 0.9 + (Math.random() - 0.5) * 120; b.vy = q.dvy * 0.9 + (Math.random() - 0.5) * 120;
     q.at = Math.min(q.at, 0.15);
   });
@@ -348,9 +350,9 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   if (fouled) return;
   // body-check fouls: slide hits player who already released the ball (late tackle)
   for (const q of s.players) {
-    if (q.anim !== 1 || q.at < 0.1) continue;
+    if (q.anim !== 1 || q.at < 0.2 || q.cleanTackle) continue;
     const vi = s.players.findIndex((o) => o.team !== q.team && !o.gk && o.anim !== 6 && o.cd > 0.15 && dist(o.x, o.y, q.x + q.fx * 10, q.y + q.fy * 10) < 18 && s.ball.owner !== s.players.indexOf(o));
-    if (vi >= 0 && s.lastTouch !== q.team && dist(s.ball.x, s.ball.y, s.players[vi]!.x, s.players[vi]!.y) < 260) {
+    if (vi >= 0 && s.lastTouch !== q.team && dist(s.ball.x, s.ball.y, s.players[vi]!.x, s.players[vi]!.y) > 30 && dist(s.ball.x, s.ball.y, s.players[vi]!.x, s.players[vi]!.y) < 120) {
       const o = s.players[vi]!; o.anim = 6; o.at = 0.6;
       const bx = o.x, by = o.y;
       s.lastTouch = o.team;
@@ -366,8 +368,10 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     if (o.anim === 5) {
       const pr = 1 - Math.max(0, o.at) / 0.65;
       if (o.skill === "RAINBOW FLICK") { const off = -14 + 30 * pr; b.x = o.x + o.fx * off; b.y = o.y + o.fy * off; b.z = Math.sin(pr * Math.PI) * 34; }
-      else if (o.skill === "STEPOVER") { const l = Math.sin(pr * Math.PI * 4) * 8; b.x += -o.fy * l; b.y += o.fx * l; }
+      else if (o.skill === "STEPOVERS") { const l = Math.sin(pr * Math.PI * 4) * 8; b.x += -o.fy * l; b.y += o.fx * l; }
       else if (o.skill === "ROULETTE") { const a = pr * Math.PI * 2; b.x = o.x + Math.cos(a) * 15 * o.fx - Math.sin(a) * 15 * o.fy; b.y = o.y + Math.cos(a) * 15 * o.fy + Math.sin(a) * 15 * o.fx; }
+      else if (o.skill === "HEEL FLICK") { b.x = o.x + o.fx * (15 + Math.sin(pr * Math.PI) * 22); b.y = o.y + o.fy * (15 + Math.sin(pr * Math.PI) * 22); b.z = Math.sin(pr * Math.PI) * 26; }
+      else if (o.skill === "ELASTICO") { const l = Math.sin(pr * Math.PI * 2) * 18; b.x += -o.fy * l; b.y += o.fx * l; }
     }
     // tackles
     s.players.forEach((q, j) => {
