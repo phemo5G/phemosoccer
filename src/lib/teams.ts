@@ -8,12 +8,26 @@ export type Team = {
   players: string[];
   bench?: string[];
   league: string;
+  lineup?: { name: string; position: string; rating: number }[];
 };
 
 export const benchFor = (t: Team) => t.bench ?? ["Sub GK", "Sub DEF", "Sub MID", "Sub FWD"].map((r) => `${t.short} ${r}`);
 
 // Club and player names are used as fan-made rosters; no official licence.
 export const TEAMS: Team[] = [
+  { id: "phemo", name: "Phemo FC", short: "PFC", primary: "#7be3d1", secondary: "#172523", rating: 91, league: "Custom Clubs", players: ["Tashata", "Shane", "Phemo", "Andrwe", "Tumelo"], bench: ["PFC Sub GK", "PFC Sub DEF", "PFC Sub MID", "PFC Sub FWD"], lineup: [
+    { name: "Tashata", position: "GK", rating: 95 },
+    { name: "Phemo Jr", position: "LB", rating: 95 },
+    { name: "Shane", position: "CB", rating: 51 },
+    { name: "Phemo XII", position: "CB", rating: 97 },
+    { name: "PFC Academy", position: "RB", rating: 75 },
+    { name: "Abale", position: "LW", rating: 95 },
+    { name: "Phemo", position: "CM", rating: 99 },
+    { name: "Wayne", position: "CM", rating: 95 },
+    { name: "Thamiso", position: "CM", rating: 95 },
+    { name: "Andrwe", position: "ST", rating: 95 },
+    { name: "Tumelo", position: "RW", rating: 95 },
+  ] },
   // ===== Premier League (England) =====
   { id: "liv", name: "Liverpool", short: "LIV", primary: "#c8102e", secondary: "#ffffff", rating: 89, league: "Premier League", players: ["Alisson", "Van Dijk", "Szoboszlai", "Wirtz", "Isak"], bench: ["Barcola", "Salah", "Mac Allister", "Gakpo"] },
   { id: "mci", name: "Manchester City", short: "MCI", primary: "#6cabdd", secondary: "#ffffff", rating: 90, league: "Premier League", players: ["Ederson", "Haaland", "De Bruyne", "Rodri", "Foden"] },
