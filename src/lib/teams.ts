@@ -9,7 +9,10 @@ export type Team = {
   bench?: string[];
   league: string;
   lineup?: { name: string; position: string; rating: number }[];
+  playerRatings?: Record<string, number>;
 };
+
+export const ratingFor = (team: Team, name: string) => team.lineup?.find((p) => p.name === name)?.rating ?? team.playerRatings?.[name] ?? team.rating;
 
 export const benchFor = (t: Team) => t.bench ?? ["Sub GK", "Sub DEF", "Sub MID", "Sub FWD"].map((r) => `${t.short} ${r}`);
 
@@ -70,7 +73,7 @@ export const TEAMS: Team[] = [
   { id: "nic", name: "Nice", short: "NIC", primary: "#000000", secondary: "#e30613", rating: 80, league: "Ligue 1", players: ["Bułka", "Laborde", "Dante", "Boudaoui", "Guessand"] },
 
   // ===== International =====
-  { id: "arg", name: "Argentina", short: "ARG", primary: "#75aadb", secondary: "#ffffff", rating: 91, league: "International", players: ["E. Martínez", "Julián Álvarez", "Messi", "Mac Allister", "Enzo Fernández"] },
+  { id: "arg", name: "Argentina", short: "ARG", primary: "#75aadb", secondary: "#ffffff", rating: 91, league: "International", players: ["E. Martínez", "Julián Álvarez", "Messi", "Mac Allister", "Enzo Fernández"], playerRatings: { Messi: 99 } },
   { id: "por", name: "Portugal", short: "POR", primary: "#046a38", secondary: "#da291c", rating: 89, league: "International", players: ["Diogo Costa", "Ronaldo", "Bruno Fernandes", "Bernardo Silva", "Rúben Dias"] },
   { id: "bra", name: "Brazil", short: "BRA", primary: "#ffdf00", secondary: "#009c3b", rating: 89, league: "International", players: ["Alisson", "Neymar", "Vinícius Jr", "Rodrygo", "Casemiro"] },
   { id: "fra", name: "France", short: "FRA", primary: "#0055a4", secondary: "#ffffff", rating: 90, league: "International", players: ["Maignan", "Mbappé", "Griezmann", "Saliba", "Tchouaméni"] },
