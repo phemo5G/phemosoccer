@@ -257,7 +257,8 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     const cpu = s.cpuTeam === t ? CPU_LEVELS[s.difficulty] : CPU_LEVELS.Pro;
     const quality = ability(p.rating);
     p.chargeLevel = pad && i === s.controlled[t] && b.owner === i ? pad.chargeLevel ?? 0 : 0;
-    p.chargeKind = p.chargeLevel ? pad?.chargeKind : undefined;
+    if (p.chargeLevel && pad?.chargeKind) p.chargeKind = pad.chargeKind;
+    else delete p.chargeKind;
     let tx = p.x, ty = p.y, speed = 190;
     if (pad && i === s.controlled[t]) {
       const m = Math.hypot(pad.dx, pad.dy);

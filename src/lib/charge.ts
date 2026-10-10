@@ -15,7 +15,7 @@ export class ChargeTracker {
       return { level: seconds / CHARGE_SECONDS };
     }
     delete this.times[action];
-    return { level: 0, released: previous === undefined ? undefined : Math.max(0.06, previous / CHARGE_SECONDS) };
+    return previous === undefined ? { level: 0 } : { level: 0, released: Math.max(0.06, previous / CHARGE_SECONDS) };
   }
 
   reset() { this.times = {}; }

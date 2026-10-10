@@ -45,7 +45,7 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
     (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
     const keys = new Set<string>();
     const edge = new Set<string>();
-    const trackers = [new ChargeTracker(), new ChargeTracker()];
+    const trackers: [ChargeTracker, ChargeTracker] = [new ChargeTracker(), new ChargeTracker()];
     const clearInput = () => {
       keys.clear(); edge.clear(); trackers.forEach((tracker) => tracker.reset());
       pads.current.forEach((pad) => { pad.dx = pad.dy = 0; pad.held = {}; pad.charges = {}; pad.chargeLevel = 0; pad.cancelCharge = true; ACTIONS.forEach((a) => { pad[a] = false; }); });
@@ -91,13 +91,14 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
       let s = stateRef.current;
       if (!s) return;
       if (net) {
-        const mine = read(KEYS1, pads.current[guest ? 1 : 0], dt, trackers[0] ?? new ChargeTracker(), KEYS2);
+        const mine = read(KEYS1, pads.current[guest ? 1 : 0], dt, trackers[0], KEYS2);
         netT += dt;
         if (guest) {
           // accumulate presses between sends so taps aren't lost
           const acc = pads.current[0];
           acc.dx = mine.dx; acc.dy = mine.dy;
-          acc.chargeLevel = mine.chargeLevel; acc.chargeKind = mine.chargeKind;
+          acc.chargeLevel = mine.chargeLevel ?? 0;
+          if (mine.chargeKind) acc.chargeKind = mine.chargeKind; else delete acc.chargeKind;
           acc.charges = { ...acc.charges, ...mine.charges };
           ACTIONS.forEach((a) => { if (mine[a]) (acc as Record<Action, boolean>)[a] = true; });
           if (netT > 0.05) { netT = 0; net.send("pad", { ...acc }); ACTIONS.forEach((a) => ((acc as Record<Action, boolean>)[a] = false)); acc.charges = {}; }
@@ -110,8 +111,8 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
           if (netT > 0.08) { netT = 0; net.send("state", s); }
         }
       } else {
-        const p1 = read(KEYS1, pads.current[0], dt, trackers[0] ?? new ChargeTracker(), twoPlayer ? undefined : KEYS2);
-        const p2 = twoPlayer ? read(KEYS2, pads.current[1], dt, trackers[1] ?? new ChargeTracker()) : null;
+        const p1 = read(KEYS1, pads.current[0], dt, trackers[0], twoPlayer ? undefined : KEYS2);
+        const p2 = twoPlayer ? read(KEYS2, pads.current[1], dt, trackers[1]) : null;
         if (!pausedRef.current) step(s, dt, [p1, p2]);
       }
       edge.clear();
