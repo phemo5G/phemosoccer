@@ -110,7 +110,7 @@ describe("quick match ratings, charge and difficulty", () => {
       const p = s.players[17]; if (!p) throw new Error("Missing player");
       Object.assign(p, { x: 1100, y: 500, cd: 0 });
       Object.assign(s.ball, { owner: -1, x: 1000, y: 500 });
-      step(s, .05, [null, { dx: -1, dy: 0, pass: false, shoot: false }]);
+      step(s, .05, [null, null]);
       return Math.abs(p.vx);
     };
     expect(run("Master", 1)).toBeGreaterThan(run("Pro", 1));
