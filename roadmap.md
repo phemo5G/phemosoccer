@@ -1,5 +1,5 @@
 # Phemo Soccer roadmap
-- [ ] Quick match updates: bigger ball, Messi 99 OVR, ratings affect play, charged shots/passes, Beginner/Pro/Master CPU
+- [x] Quick match updates: bigger ball, Messi 99 OVR, ratings affect play, charged shots/passes, Beginner/Pro/Master CPU
 - [x] Current request: enlarge screen/pitch/goals, space controls, reward clean tackles, random visible skills, varied haircuts, add Phemo FC with player ratings
 - [x] Name the game "Phemo Soccer"
 - [x] Playable top-down match: pass, shoot, dribble, tackle, goalkeepers

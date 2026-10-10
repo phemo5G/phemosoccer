@@ -45,20 +45,26 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
     (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
     const keys = new Set<string>();
     const edge = new Set<string>();
+    const keyStarts = new Map<string, number>();
+    const keyReleases = new Map<string, number>();
     const trackers: [ChargeTracker, ChargeTracker] = [new ChargeTracker(), new ChargeTracker()];
     const clearInput = () => {
-      keys.clear(); edge.clear(); trackers.forEach((tracker) => tracker.reset());
+      keys.clear(); edge.clear(); keyStarts.clear(); keyReleases.clear(); trackers.forEach((tracker) => tracker.reset());
       pads.current.forEach((pad) => { pad.dx = pad.dy = 0; pad.held = {}; pad.charges = {}; pad.chargeLevel = 0; pad.cancelCharge = true; ACTIONS.forEach((a) => { pad[a] = false; }); });
     };
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
-      if (!keys.has(k)) edge.add(k);
+      if (!keys.has(k)) { edge.add(k); keyStarts.set(k, performance.now()); }
       keys.add(k);
       if ((k === "escape" || k === "p") && !e.repeat) { clearInput(); setPaused((v) => !v); }
       if (k === "c") setCam((c) => (c === "broadcast" ? "top" : "broadcast"));
     };
-    const up = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+    const up = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase(), start = keyStarts.get(key);
+      if (start !== undefined) keyReleases.set(key, Math.max(0.06, Math.min(1, (performance.now() - start) / (CHARGE_SECONDS * 1000))));
+      keyStarts.delete(key); keys.delete(key);
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", clearInput);
@@ -75,7 +81,11 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
           const charged = a as ChargedAction;
           const held = !pausedRef.current && (has(4 + j) || !!touch.held?.[charged] || (a === "pass" && !!extra && keys.has(" ")));
           const result = tracker.update(charged, held, dt);
-          const released = pausedRef.current ? undefined : touch.charges?.[charged] ?? result.released;
+          const primary = map[4 + j] ?? "", alternate = extra?.[4 + j] ?? "";
+          const keyboardRelease = keyReleases.get(primary) ?? keyReleases.get(alternate) ?? (a === "pass" && extra ? keyReleases.get(" ") : undefined);
+          keyReleases.delete(primary); keyReleases.delete(alternate);
+          if (a === "pass" && extra) keyReleases.delete(" ");
+          const released = pausedRef.current ? undefined : touch.charges?.[charged] ?? keyboardRelease ?? result.released;
           if (released !== undefined) { pad[a] = true; if (pad.charges) pad.charges[charged] = released; }
           if (result.level > (pad.chargeLevel ?? 0)) { pad.chargeLevel = result.level; pad.chargeKind = charged; }
         } else pad[a] = ed(4 + j) || !!touch[a];
