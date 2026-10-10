@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HALF, CROSSBAR, BOX_D, BOX_HALF, type Pad, type P, type State } from "@/lib/engine";
-import { benchFor } from "@/lib/teams";
+import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HALF, CROSSBAR, BOX_D, BOX_HALF, BALL_RADIUS, type ChargedAction, type Difficulty, type Pad, type P, type State } from "@/lib/engine";
+import { ChargeTracker, CHARGED_ACTIONS, CHARGE_SECONDS } from "@/lib/charge";
+import { benchFor, ratingFor } from "@/lib/teams";
 import type { Team } from "@/lib/teams";
 
 /** Online link: host simulates and streams state; guest streams its controller. */
@@ -14,7 +15,7 @@ export type Net = {
   peerLeft: boolean;
 };
 
-type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net };
+type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty };
 
 const emptyPad = (): Pad => ({ dx: 0, dy: 0, pass: false, shoot: false });
 const ACTIONS = ["pass", "shoot", "finesse", "chip", "tackle", "lob", "through", "skill"] as const;
@@ -25,7 +26,7 @@ const KEYS2 = ["arrowup", "arrowdown", "arrowleft", "arrowright", "k", "l", "o",
 
 let CAM: "broadcast" | "top" = "broadcast";
 
-export function Match({ home, away, twoPlayer, onExit, net }: Props) {
+export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<State | null>(null);
   const pads = useRef<[Pad, Pad]>([emptyPad(), emptyPad()]);
@@ -38,32 +39,49 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
   const guest = net?.role === "guest";
 
   useEffect(() => {
-    stateRef.current = createState(home, away);
+    stateRef.current = createState(home, away, 180, difficulty, !twoPlayer && !net ? 1 : null);
     window.scrollTo(0, 0);
     const css = getComputedStyle(document.documentElement);
     (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
     const keys = new Set<string>();
     const edge = new Set<string>();
+    const trackers = [new ChargeTracker(), new ChargeTracker()];
+    const clearInput = () => {
+      keys.clear(); edge.clear(); trackers.forEach((tracker) => tracker.reset());
+      pads.current.forEach((pad) => { pad.dx = pad.dy = 0; pad.held = {}; pad.charges = {}; pad.chargeLevel = 0; pad.cancelCharge = true; ACTIONS.forEach((a) => { pad[a] = false; }); });
+    };
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (!keys.has(k)) edge.add(k);
       keys.add(k);
-      if (k === "escape" || k === "p") setPaused((v) => !v);
+      if ((k === "escape" || k === "p") && !e.repeat) { clearInput(); setPaused((v) => !v); }
       if (k === "c") setCam((c) => (c === "broadcast" ? "top" : "broadcast"));
     };
     const up = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", clearInput);
 
-    const read = (map: string[], touch: Pad, extra?: string[]): Pad => {
+    const read = (map: string[], touch: Pad, dt: number, tracker: ChargeTracker, extra?: string[]): Pad => {
       const has = (i: number) => keys.has(map[i] ?? "") || (!!extra && keys.has(extra[i] ?? ""));
       const ed = (i: number) => edge.has(map[i] ?? "") || (!!extra && edge.has(extra[i] ?? ""));
       const dx = Math.max(-1, Math.min(1, (has(3) ? 1 : 0) - (has(2) ? 1 : 0) + touch.dx));
       const dy = Math.max(-1, Math.min(1, (has(1) ? 1 : 0) - (has(0) ? 1 : 0) + touch.dy));
-      const pad: Pad = { dx, dy, pass: false, shoot: false };
-      ACTIONS.forEach((a, j) => { (pad as Record<Action, boolean>)[a] = ed(4 + j) || !!touch[a]; (touch as Record<Action, boolean>)[a] = false; });
-      if (extra && edge.has(" ")) pad.pass = true;
+      const pad: Pad = { dx, dy, pass: false, shoot: false, charges: {}, chargeLevel: 0 };
+      if (touch.cancelCharge || pausedRef.current) { tracker.reset(); touch.cancelCharge = false; }
+      ACTIONS.forEach((a, j) => {
+        if (CHARGED_ACTIONS.includes(a as ChargedAction)) {
+          const charged = a as ChargedAction;
+          const held = !pausedRef.current && (has(4 + j) || !!touch.held?.[charged] || (a === "pass" && !!extra && keys.has(" ")));
+          const result = tracker.update(charged, held, dt);
+          const released = pausedRef.current ? undefined : touch.charges?.[charged] ?? result.released;
+          if (released !== undefined) { pad[a] = true; if (pad.charges) pad.charges[charged] = released; }
+          if (result.level > (pad.chargeLevel ?? 0)) { pad.chargeLevel = result.level; pad.chargeKind = charged; }
+        } else pad[a] = ed(4 + j) || !!touch[a];
+        touch[a] = false;
+      });
+      touch.charges = {};
       return pad;
     };
 
@@ -73,25 +91,27 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
       let s = stateRef.current;
       if (!s) return;
       if (net) {
-        const mine = read(KEYS1, pads.current[guest ? 1 : 0], KEYS2);
+        const mine = read(KEYS1, pads.current[guest ? 1 : 0], dt, trackers[0] ?? new ChargeTracker(), KEYS2);
         netT += dt;
         if (guest) {
           // accumulate presses between sends so taps aren't lost
           const acc = pads.current[0];
           acc.dx = mine.dx; acc.dy = mine.dy;
+          acc.chargeLevel = mine.chargeLevel; acc.chargeKind = mine.chargeKind;
+          acc.charges = { ...acc.charges, ...mine.charges };
           ACTIONS.forEach((a) => { if (mine[a]) (acc as Record<Action, boolean>)[a] = true; });
-          if (netT > 0.05) { netT = 0; net.send("pad", { ...acc }); ACTIONS.forEach((a) => ((acc as Record<Action, boolean>)[a] = false)); }
+          if (netT > 0.05) { netT = 0; net.send("pad", { ...acc }); ACTIONS.forEach((a) => ((acc as Record<Action, boolean>)[a] = false)); acc.charges = {}; }
           if (net.remoteState.current) { s = net.remoteState.current as State; stateRef.current = s; }
         } else {
           const rp = net.remotePad.current;
           const p2: Pad = rp ? { ...rp } : emptyPad();
-          if (rp) ACTIONS.forEach((a) => ((rp as Record<Action, boolean>)[a] = false));
+          if (rp) { ACTIONS.forEach((a) => ((rp as Record<Action, boolean>)[a] = false)); rp.charges = {}; }
           step(s, dt, [mine, p2]);
           if (netT > 0.08) { netT = 0; net.send("state", s); }
         }
       } else {
-        const p1 = read(KEYS1, pads.current[0], twoPlayer ? undefined : KEYS2);
-        const p2 = twoPlayer ? read(KEYS2, pads.current[1]) : null;
+        const p1 = read(KEYS1, pads.current[0], dt, trackers[0] ?? new ChargeTracker(), twoPlayer ? undefined : KEYS2);
+        const p2 = twoPlayer ? read(KEYS2, pads.current[1], dt, trackers[1] ?? new ChargeTracker()) : null;
         if (!pausedRef.current) step(s, dt, [p1, p2]);
       }
       edge.clear();
@@ -104,8 +124,8 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
-  }, [home, away, twoPlayer, net, guest]);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", clearInput); };
+  }, [home, away, twoPlayer, net, guest, difficulty]);
 
   const showMenu = paused || hud.over || hud.left;
   return (
@@ -115,6 +135,7 @@ export function Match({ home, away, twoPlayer, onExit, net }: Props) {
         <span className="sb-score">{hud.score[0]} – {hud.score[1]}</span>
         <span className="sb-team">{away.short}<i style={{ background: away.primary }} /></span>
         <span className="sb-clock">{hud.min}'</span>
+        {!twoPlayer && !net && <span className="text-sm text-primary">{difficulty}</span>}
         <Button variant="ghost" className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</Button>
         <Button variant="ghost" className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</Button>
       </div>
@@ -170,7 +191,7 @@ function Tactics({ s, team, club }: { s: State; team: 0 | 1; club: Team }) {
       {slot !== null && (
         <div className="mt-2 flex flex-wrap gap-1">
           {bench.map((n) => (
-            <Button variant="ghost" key={n} className="chip" onClick={() => { substitute(s, team, slot, n); setSlot(null); force((x) => x + 1); }}>↑ {n}</Button>
+            <Button variant="ghost" key={n} className="chip" onClick={() => { substitute(s, team, slot, n, ratingFor(club, n)); setSlot(null); force((x) => x + 1); }}>↑ {n}</Button>
           ))}
         </div>
       )}
@@ -192,20 +213,36 @@ function TouchPad({ pad, label }: { pad: Pad; label: string }) {
   };
   const end = () => { pad.dx = pad.dy = 0; setKnob({ x: 0, y: 0 }); };
   const b = (a: Action) => () => { (pad as Record<Action, boolean>)[a] = true; };
+  const starts = useRef<Partial<Record<ChargedAction, number>>>({});
+  const charge = (action: ChargedAction) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
+      starts.current[action] = performance.now(); pad.held = { ...pad.held, [action]: true };
+    },
+    onPointerUp: () => {
+      const start = starts.current[action];
+      if (start !== undefined && pad.held?.[action]) pad.charges = { ...pad.charges, [action]: Math.max(0.06, Math.min(1, (performance.now() - start) / (CHARGE_SECONDS * 1000))) };
+      if (pad.held) pad.held[action] = false;
+      delete starts.current[action];
+      pad.cancelCharge = true;
+    },
+    onPointerCancel: () => { pad.held = {}; pad.charges = {}; starts.current = {}; pad.cancelCharge = true; },
+    onLostPointerCapture: () => { if (pad.held?.[action]) { pad.held[action] = false; delete starts.current[action]; pad.cancelCharge = true; } },
+  });
   return (
     <div className="touchpad" aria-label={`${label} controls`}>
       <div ref={baseRef} className="stick" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }} onPointerMove={(e) => e.buttons && move(e)} onPointerUp={end} onPointerCancel={end}>
         <div className="knob" style={{ transform: `translate(${knob.x * 28}px, ${knob.y * 28}px)` }}>{label}</div>
       </div>
       <div className="cluster">
-        <Button variant="ghost" className="mini cluster-up" onPointerDown={b("lob")}>Lob</Button>
-        <Button variant="ghost" className="tbtn cluster-main" onPointerDown={b("pass")}>Pass</Button>
-        <Button variant="ghost" className="mini cluster-side" aria-label={`${label} through pass`} onPointerDown={b("through")}>Thru</Button>
+        <Button variant="ghost" className="mini cluster-up" {...charge("lob")}>Lob</Button>
+        <Button variant="ghost" className="tbtn cluster-main" {...charge("pass")}>Pass</Button>
+        <Button variant="ghost" className="mini cluster-side" aria-label={`${label} through pass`} {...charge("through")}>Thru</Button>
       </div>
       <div className="cluster">
-        <Button variant="ghost" className="mini cluster-up" aria-label={`${label} finesse shot`} onPointerDown={b("finesse")}>Fin</Button>
-        <Button variant="ghost" className="tbtn tbtn-shoot cluster-main" onPointerDown={b("shoot")}>Shoot</Button>
-        <Button variant="ghost" className="mini cluster-side" onPointerDown={b("chip")}>Chip</Button>
+        <Button variant="ghost" className="mini cluster-up" aria-label={`${label} finesse shot`} {...charge("finesse")}>Fin</Button>
+        <Button variant="ghost" className="tbtn tbtn-shoot cluster-main" {...charge("shoot")}>Shoot</Button>
+        <Button variant="ghost" className="mini cluster-side" {...charge("chip")}>Chip</Button>
       </div>
       <div className="skill-controls">
         <Button variant="ghost" className="mini" aria-label={`${label} random skill move`} onPointerDown={b("skill")}>Skill</Button>
@@ -286,6 +323,12 @@ function figure(g: CanvasRenderingContext2D, p: P, kit: string, trim: string, hu
   if (human && ctl) {
     g.fillStyle = tag === "P1" ? PALETTE.p1 : PALETTE.p2; g.font = "bold 12px Barlow, sans-serif"; g.textAlign = "center";
     g.fillText(`${tag} · ${p.name}`, base.x, base.y - 58 * s);
+    if (p.chargeLevel && p.chargeKind) {
+      const width = 48 * s, y = base.y - 85 * s;
+      g.fillStyle = PALETTE.ink; g.fillRect(base.x - width / 2, y, width, 6 * s);
+      g.fillStyle = tag === "P1" ? PALETTE.p1 : PALETTE.p2; g.fillRect(base.x - width / 2, y, width * p.chargeLevel, 6 * s);
+      g.font = "bold 11px Barlow, sans-serif"; g.fillText(p.chargeKind.toUpperCase(), base.x, y - 4 * s);
+    }
     if (p.anim === 5) { g.font = "bold 11px Barlow, sans-serif"; g.fillText(p.skill, base.x, base.y - 73 * s); }
   }
 }
@@ -320,8 +363,8 @@ function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, two
   }
   items.push({ y: b.y, f: () => {
     const sh = proj(b.x, b.y, 0), bp = proj(b.x, b.y, b.z + 5);
-    g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(sh.x, sh.y, 6 * sh.s * Math.max(0.4, 1 - b.z / 200), 2.5 * sh.s, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = PALETTE.chalk; g.beginPath(); g.arc(bp.x, bp.y, 6 * bp.s, 0, Math.PI * 2); g.fill();
+    g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(sh.x, sh.y, BALL_RADIUS * sh.s * Math.max(0.4, 1 - b.z / 200), 3 * sh.s, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = PALETTE.chalk; g.beginPath(); g.arc(bp.x, bp.y, BALL_RADIUS * bp.s, 0, Math.PI * 2); g.fill();
     g.strokeStyle = PALETTE.ink; g.lineWidth = 1; g.stroke();
     g.fillStyle = PALETTE.ink; g.beginPath(); g.arc(bp.x + Math.sin(b.x / 8) * 2 * bp.s, bp.y, 2 * bp.s, 0, Math.PI * 2); g.fill();
   } });
