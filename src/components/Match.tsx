@@ -9,11 +9,28 @@ import type { Team } from "@/lib/teams";
 /** Online link: host simulates and streams state; guest streams its controller. */
 export type Net = {
   role: "host" | "guest";
-  send: (event: "pad" | "state", payload: unknown) => void;
+  send: (event: "pad" | "state" | "emoji" | "skip", payload: unknown) => void;
   remotePad: { current: Pad | null };
   remoteState: { current: unknown };
   peerLeft: boolean;
+  /** Reactions and celebration-skip votes received from the other player. */
+  inbox?: { emojis: string[]; skip: boolean };
 };
+
+const EMOJIS = ["😡", "😂", "🙂", "👏"];
+const LINES: Record<string, string[]> = {
+  GOAL: ["He bursts into the goal! What a finish!", "It's in! The crowd goes wild!", "Back of the net! Unbelievable!"],
+  SAVE: ["Oh my goshhh, how's he missed that wonderful strike!", "What a save by the keeper!", "Denied! Brilliant goalkeeping!"],
+  TACKLE: ["Well-timed tackle!", "Sexy tackle! Clean as you like!", "Wins it back beautifully!"],
+  SETPIECE: ["He knows how to handle his balls, can he put it in?", "Big chance from the set piece here.", "Everyone holds their breath..."],
+};
+function say(text: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.rate = 1.08; u.pitch = 1.05;
+  window.speechSynthesis.speak(u);
+}
+type Snap = { players: P[]; ball: State["ball"] };
 
 type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty };
 
@@ -25,13 +42,41 @@ const KEYS1 = ["w", "s", "a", "d", "f", "g", "h", "r", "e", "t", "y", "q"];
 const KEYS2 = ["arrowup", "arrowdown", "arrowleft", "arrowright", "k", "l", "o", "i", "j", "u", "m", "n"];
 
 let CAM: "broadcast" | "top" = "broadcast";
+/** Behind-the-taker view for free kicks and penalties. */
+let SP: { ox: number; oy: number; fx: number; fy: number } | null = null;
 
 export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<State | null>(null);
   const pads = useRef<[Pad, Pad]>([emptyPad(), emptyPad()]);
-  const [hud, setHud] = useState({ score: [0, 0], min: 0, flash: "", over: false, left: false });
-  const [paused, setPaused] = useState(false);
+  const [hud, setHud] = useState({ score: [0, 0], min: 0, flash: "", over: false, left: false, celebration: "" });
+  const [paused, setPaused] = useState(!net);
+  const [started, setStarted] = useState(!!net);
+  const [highlight, setHighlight] = useState("");
+  const [replaying, setReplaying] = useState(false);
+  const [floating, setFloating] = useState<{ id: number; e: string; mine: boolean }[]>([]);
+  const [votes, setVotes] = useState<[boolean, boolean]>([false, false]);
+  const [commentary, setCommentary] = useState(true);
+  const commentaryRef = useRef(true); commentaryRef.current = commentary;
+  const history = useRef<Snap[]>([]);
+  const replay = useRef<{ frames: Snap[]; i: number } | null>(null);
+  const votesRef = useRef<[boolean, boolean]>([false, false]);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showEmoji = (e: string, mine: boolean) => {
+    const id = Math.random();
+    setFloating((f) => [...f.slice(-6), { id, e, mine }]);
+    setTimeout(() => setFloating((f) => f.filter((x) => x.id !== id)), 2200);
+  };
+  const sendEmoji = (e: string) => { showEmoji(e, true); net?.send("emoji", e); };
+  const startReplay = () => {
+    if (history.current.length < 10) return;
+    replay.current = { frames: history.current.slice(), i: 0 }; setReplaying(true); setHighlight("");
+  };
+  const voteSkip = (side: 0 | 1) => {
+    const v: [boolean, boolean] = [...votesRef.current]; v[side] = true; votesRef.current = v; setVotes(v);
+    if (net) net.send("skip", side);
+  };
+  const full = !twoPlayer || !!net;
   const [cam, setCam] = useState<"broadcast" | "top">("broadcast");
   CAM = cam;
   const pausedRef = useRef(false);
@@ -100,6 +145,23 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       let s = stateRef.current;
       if (!s) return;
+      if (net?.inbox) {
+        net.inbox.emojis.splice(0).forEach((e) => showEmoji(e, false));
+        if (net.inbox.skip) { net.inbox.skip = false; const v: [boolean, boolean] = [...votesRef.current]; v[guest ? 0 : 1] = true; votesRef.current = v; setVotes(v); }
+      }
+      const rp0 = replay.current;
+      if (rp0) {
+        const f = rp0.frames[Math.floor(rp0.i)];
+        rp0.i += 0.5;
+        if (!f) { replay.current = null; setReplaying(false); }
+        else draw(canvasRef.current, { ...s, players: f.players, ball: f.ball, setPiece: -1 }, home, away, twoPlayer, true);
+        edge.clear(); raf = requestAnimationFrame(loop); return;
+      }
+      // celebration skip: vs CPU one human decides; otherwise both sides must agree
+      if (s.celebration && !guest) {
+        const v = votesRef.current;
+        if ((!twoPlayer && !net && v[0]) || (v[0] && v[1])) { s.pause = Math.min(s.pause, 0.05); }
+      } else if (!s.celebration && (votesRef.current[0] || votesRef.current[1])) { votesRef.current = [false, false]; setVotes([false, false]); }
       if (net) {
         const mine = read(KEYS1, pads.current[guest ? 1 : 0], dt, trackers[0], KEYS2);
         netT += dt;
@@ -126,42 +188,76 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
         if (!pausedRef.current) step(s, dt, [p1, p2]);
       }
       edge.clear();
+      if (!pausedRef.current && s.pause <= 0) {
+        history.current.push({ players: s.players.map((p) => ({ ...p })), ball: { ...s.ball } });
+        if (history.current.length > 300) history.current.shift();
+      }
+      const evs = s.events?.splice(0) ?? [];
+      const ev = evs.includes("GOAL") ? "GOAL" : evs.includes("SAVE") ? "SAVE" : evs[0];
+      if (ev) {
+        setHighlight(ev);
+        if (highlightTimer.current) clearTimeout(highlightTimer.current);
+        highlightTimer.current = setTimeout(() => setHighlight(""), 7000);
+        if (commentaryRef.current) { const l = LINES[ev] ?? []; say(l[Math.floor(Math.random() * l.length)] ?? ""); }
+      }
+      const spNow = s.setPiece >= 0 && (s.spKind === "freekick" || s.spKind === "penalty");
+      if (spNow && !SP && commentaryRef.current) { const l = LINES.SETPIECE!; say(l[Math.floor(Math.random() * l.length)]!); }
       draw(canvasRef.current, s, home, away, twoPlayer);
       hudT += dt;
       if (hudT > 0.2) {
         hudT = 0;
-        setHud({ score: [...s.score], min: Math.min(90, Math.floor((s.time / s.duration) * 90)), flash: s.flash, over: s.over, left: !!net?.peerLeft });
+        setHud({ score: [...s.score], min: Math.min(90, Math.floor((s.time / s.duration) * 90)), flash: s.flash, over: s.over, left: !!net?.peerLeft, celebration: s.celebration ?? "" });
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", clearInput); };
+    return () => { SP = null; if (typeof window !== "undefined") window.speechSynthesis?.cancel(); cancelAnimationFrame(raf); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", clearInput); };
   }, [home, away, twoPlayer, net, guest, difficulty]);
 
   const showMenu = paused || hud.over || hud.left;
+  const p1Pad = (!net || !guest) && <div className={full ? "touch-overlay" : "touch-row"}><TouchPad pad={pads.current[0]} label="P1" /></div>;
+  const p2Pad = ((twoPlayer && !net) || guest) && <div className={full ? "touch-overlay" : "touch-row"}><TouchPad pad={pads.current[1]} label="P2" /></div>;
+  const mySide: 0 | 1 = guest ? 1 : 0;
   return (
-    <div className="match-shell">
+    <div className={full ? "match-shell match-full" : "match-shell"}>
       <div className="scoreboard">
         <span className="sb-team"><i style={{ background: home.primary }} />{home.short}</span>
         <span className="sb-score">{hud.score[0]} – {hud.score[1]}</span>
         <span className="sb-team">{away.short}<i style={{ background: away.primary }} /></span>
         <span className="sb-clock">{hud.min}'</span>
         {!twoPlayer && !net && <span className="text-sm text-primary">{difficulty}</span>}
-        <Button variant="ghost" className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top-down cam" : "Broadcast cam"}</Button>
+        <Button variant="ghost" className="sb-btn" onClick={() => setCam((c) => (c === "broadcast" ? "top" : "broadcast"))}>{cam === "broadcast" ? "Top cam" : "TV cam"}</Button>
+        <Button variant="ghost" className="sb-btn" aria-pressed={commentary} onClick={() => { setCommentary((v) => !v); window.speechSynthesis?.cancel(); }}>{commentary ? "🔊" : "🔇"}</Button>
         <Button variant="ghost" className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</Button>
+        <span className="emoji-bar">{EMOJIS.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => sendEmoji(e)}>{e}</button>)}</span>
       </div>
-      {(!net || !guest) && <div className="touch-row"><TouchPad pad={pads.current[0]} label="P1" /></div>}
+      {!full && p1Pad}
       <div className="pitch-wrap">
         <div className="pitch-viewport"><canvas aria-label="Football pitch" ref={canvasRef} width={CW} height={CH} className="pitch-canvas" /></div>
-        {hud.flash && !hud.over && <div className="flash">{hud.flash}</div>}
+        {replaying && <div className="replay-tag">REPLAY</div>}
+        {hud.flash && !hud.over && !replaying && <div className="flash"><span>{hud.flash}</span>{hud.celebration && <small className="celebration">{hud.celebration}</small>}</div>}
+        <div className="emoji-float">{floating.map((f) => <span key={f.id} className={f.mine ? "mine" : "theirs"}>{f.e}</span>)}</div>
+        <div className="event-actions">
+          {highlight && !replaying && !showMenu && <Button variant="ghost" className="chip chip-on" onClick={startReplay}>▶ Replay {highlight.toLowerCase()}</Button>}
+          {replaying && <Button variant="ghost" className="chip chip-on" onClick={() => { replay.current = null; setReplaying(false); }}>Skip replay</Button>}
+          {hud.celebration && !replaying && (
+            !twoPlayer && !net
+              ? <Button variant="ghost" className="chip" onClick={() => voteSkip(0)}>Skip celebration</Button>
+              : net
+                ? <Button variant="ghost" className="chip" disabled={votes[mySide]} onClick={() => voteSkip(mySide)}>{votes[mySide] ? "Waiting for opponent…" : "Vote skip"} ({votes.filter(Boolean).length}/2)</Button>
+                : <>{([0, 1] as const).map((side) => <Button key={side} variant="ghost" className="chip" disabled={votes[side]} onClick={() => voteSkip(side)}>P{side + 1} skip {votes[side] ? "✓" : ""}</Button>)}</>
+          )}
+        </div>
+        {full && p1Pad}
+        {full && p2Pad}
         {showMenu && (
           <div className="overlay">
-            <h2 className="display text-6xl">{hud.left ? "Opponent left" : hud.over ? "Full time" : net ? "Menu" : "Paused"}</h2>
+            <h2 className="display text-6xl">{hud.left ? "Opponent left" : hud.over ? "Full time" : !started ? "Team management" : net ? "Menu" : "Paused"}</h2>
             <p className="display text-4xl">{home.short} {hud.score[0]} – {hud.score[1]} {away.short}</p>
             {net && <p className="opacity-80">You are {guest ? `P2 · ${away.name}` : `P1 · ${home.name}`}</p>}
             <div className="flex gap-3">
-              {!hud.over && !hud.left && <Button variant="ghost" className="btn-primary" onClick={() => setPaused(false)}>Resume</Button>}
-              <Button variant="ghost" className="btn-primary" onClick={onExit}>{net ? "Leave match" : "New match"}</Button>
+              {!hud.over && !hud.left && <Button variant="ghost" className="btn-primary" onClick={() => { setStarted(true); setPaused(false); }}>{started ? "Resume" : "Kick off"}</Button>}
+              <Button variant="ghost" className="btn-primary" onClick={onExit}>{net ? "Leave match" : started ? "New match" : "Back"}</Button>
               <Link to="/" className="btn-ghost">Main menu</Link>
             </div>
             {!hud.over && !guest && stateRef.current && <Tactics s={stateRef.current} team={0} club={home} />}
@@ -169,12 +265,8 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
           </div>
         )}
       </div>
-      {((twoPlayer && !net) || guest) && <div className="touch-row"><TouchPad pad={pads.current[1]} label="P2" /></div>}
-      <p className="keys-hint">
-        {net
-          ? "WASD/Arrows move · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide · C camera"
-          : <>P1: WASD · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide{twoPlayer ? " — P2: Arrows · K pass · U lob · M through · L power · O finesse · I chip · N skill · J slide" : " (arrows + Space also work)"} · C camera · P pause</>}
-      </p>
+      {!full && p2Pad}
+      {!full && <p className="keys-hint">P1: WASD · F pass · T lob · Y through · G power · H finesse · R chip · Q skill · E slide — P2: Arrows · K pass · U lob · M through · L power · O finesse · I chip · N skill · J slide · C camera · P pause</p>}
     </div>
   );
 }
@@ -267,7 +359,13 @@ const CW = 1700, CH = 900, CX = CW / 2, FOC = 1100;
 const TS = Math.min(CW / (W + 140), CH / (H + 100));
 const PALETTE = { shadow: "", p1: "", p2: "", sky: "", surround: "", grass: "", stripe: "", line: "", net: "", netLine: "", chalk: "", ink: "", keeperHome: "", keeperAway: "", skin0: "", skin1: "", skin2: "", skin3: "", skin4: "", hair0: "", hair1: "", hair2: "", hair3: "" };
 function identity(name: string) { return Array.from(name).reduce((hash, c) => (hash * 31 + c.charCodeAt(0)) >>> 0, 7); }
+function depth(x: number, y: number) { return SP ? (x - SP.ox) * SP.fx + (y - SP.oy) * SP.fy : y; }
 function proj(x: number, y: number, z = 0) {
+  if (SP) {
+    const dx = x - SP.ox, dy = y - SP.oy;
+    const d = Math.max(45, dx * SP.fx + dy * SP.fy), l = dx * -SP.fy + dy * SP.fx, k = 620 / d;
+    return { x: CX + l * k, y: CH * 0.42 + 95 * k - z * k, s: k * 0.55 };
+  }
   if (CAM === "top") return { x: CX + (x - W / 2) * TS, y: CH / 2 + (y - H / 2) * TS - z * TS * 0.7, s: TS * 1.1 };
   const sc = FOC / (FOC + (H - y));
   const far = FOC / (FOC + H), scale = (CW - 180) / W;
@@ -344,8 +442,14 @@ function figure(g: CanvasRenderingContext2D, p: P, kit: string, trim: string, hu
   }
 }
 
-function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, twoPlayer: boolean) {
+function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, twoPlayer: boolean, replaying = false) {
   if (!c) return;
+  const taker = s.setPiece >= 0 && (s.spKind === "freekick" || s.spKind === "penalty") && !replaying ? s.players[s.setPiece] : undefined;
+  if (taker) {
+    const gx = taker.team === 0 ? W : 0, gy = H / 2, len = Math.hypot(gx - taker.x, gy - taker.y) || 1;
+    const fx = (gx - taker.x) / len, fy = (gy - taker.y) / len;
+    SP = { ox: taker.x - fx * 230, oy: taker.y - fy * 230, fx, fy };
+  } else SP = null;
   const g = c.getContext("2d");
   if (!g) return;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -364,15 +468,16 @@ function draw(c: HTMLCanvasElement | null, s: State, home: Team, away: Team, two
   const items: { y: number; f: () => void }[] = s.players.map((p, i) => {
     const t = p.team === 0 ? home : away;
     const human = p.team === 0 || twoPlayer;
-    return { y: p.y, f: () => figure(g, p, p.gk ? (p.team === 0 ? PALETTE.keeperHome : PALETTE.keeperAway) : t.primary, p.gk ? PALETTE.ink : t.secondary, human, p.team === 0 ? "P1" : "P2", human && s.controlled[p.team] === i) };
+    return { y: depth(p.x, p.y), f: () => figure(g, p, p.gk ? (p.team === 0 ? PALETTE.keeperHome : PALETTE.keeperAway) : t.primary, p.gk ? PALETTE.ink : t.secondary, human, p.team === 0 ? "P1" : "P2", human && s.controlled[p.team] === i) };
   });
   const b = s.ball;
   const viewport = c.parentElement;
   if (viewport && c.clientWidth > viewport.clientWidth) {
+    if (SP) { viewport.scrollLeft = (c.clientWidth - viewport.clientWidth) / 2; } else {
     const target = proj(b.x, b.y).x * c.clientWidth / CW - viewport.clientWidth / 2;
     viewport.scrollLeft = Math.max(0, Math.min(c.clientWidth - viewport.clientWidth, target));
-  }
-  items.push({ y: b.y, f: () => {
+  } }
+  items.push({ y: depth(b.x, b.y) + 0.1, f: () => {
     const sh = proj(b.x, b.y, 0), bp = proj(b.x, b.y, b.z + 5);
     g.fillStyle = PALETTE.shadow; g.beginPath(); g.ellipse(sh.x, sh.y, BALL_RADIUS * sh.s * Math.max(0.4, 1 - b.z / 200), 3 * sh.s, 0, 0, Math.PI * 2); g.fill();
     g.fillStyle = PALETTE.chalk; g.beginPath(); g.arc(bp.x, bp.y, BALL_RADIUS * bp.s, 0, Math.PI * 2); g.fill();
