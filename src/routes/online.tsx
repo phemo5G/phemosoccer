@@ -42,12 +42,14 @@ function Online() {
     const me = crypto.randomUUID();
     const ch = supabase.channel(`phemo-${room}`, { config: { broadcast: { self: false }, presence: { key: me } } });
     const n = net.current;
-    n.remotePad.current = null; n.remoteState.current = null; n.peerLeft = false;
+    n.remotePad.current = null; n.remoteState.current = null; n.peerLeft = false; n.inbox = { emojis: [], skip: false };
     n.send = (event, payload) => { void ch.send({ type: "broadcast", event, payload }); };
     ch.on("broadcast", { event: "pad" }, ({ payload }) => {
       const p = payload as Pad, cur = n.remotePad.current;
       n.remotePad.current = cur ? { ...p, pass: cur.pass || p.pass, shoot: cur.shoot || p.shoot, finesse: cur.finesse || p.finesse, chip: cur.chip || p.chip, tackle: cur.tackle || p.tackle, lob: cur.lob || p.lob, through: cur.through || p.through, skill: cur.skill || p.skill } as Pad : p;
     });
+    ch.on("broadcast", { event: "emoji" }, ({ payload }) => { if (typeof payload === "string") n.inbox?.emojis.push(payload); });
+    ch.on("broadcast", { event: "skip" }, () => { if (n.inbox) n.inbox.skip = true; });
     ch.on("broadcast", { event: "state" }, ({ payload }) => { n.remoteState.current = payload; });
     ch.on("presence", { event: "sync" }, () => {
       const seats = Object.values(ch.presenceState<Seat>()).map((a) => a[0]!).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
