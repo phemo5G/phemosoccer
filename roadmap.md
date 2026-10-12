@@ -13,3 +13,6 @@
 - [ ] Real benches all clubs; 2P touch buttons on each side above game; fouls -> free kicks/penalties
 - [ ] Online mode: two players enter the same code to be matched and play each other
 - [ ] Mobile buttons: P1 above the pitch, P2 below
+- [x] Replays (goal/save/tackle), commentary, emoji reactions, celebrations + skip votes, set-piece behind-taker camera, pre-match team management, full-screen vs CPU/online with see-through controls
+- [ ] Clubs mode: create club + player (stats from 0, grow with goals/assists), knockout cup with captain difficulty, online club vs club by code with CPU teammates
+- [ ] Voice chat in online matches
