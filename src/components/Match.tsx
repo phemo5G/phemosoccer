@@ -201,7 +201,7 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
         if (commentaryRef.current) { const l = LINES[ev] ?? []; say(l[Math.floor(Math.random() * l.length)] ?? ""); }
       }
       const spNow = s.setPiece >= 0 && (s.spKind === "freekick" || s.spKind === "penalty");
-      if (spNow && !SP && commentaryRef.current) { const l = LINES.SETPIECE!; say(l[Math.floor(Math.random() * l.length)]!); }
+      if (spNow && !SP && commentaryRef.current) { const l = LINES["SETPIECE"]!; say(l[Math.floor(Math.random() * l.length)]!); }
       draw(canvasRef.current, s, home, away, twoPlayer);
       hudT += dt;
       if (hudT > 0.2) {
