@@ -205,3 +205,29 @@ body { font-family: var(--font-sans); }
   --game-skin0: oklch(.71 .095 55); --game-skin1: oklch(.83 .065 55); --game-skin2: oklch(.48 .065 48); --game-skin3: oklch(.59 .085 48); --game-skin4: oklch(.9 .04 55);
   --game-hair0: oklch(.2 .02 45); --game-hair1: oklch(.35 .055 55); --game-hair2: oklch(.78 .1 90); --game-hair3: oklch(.46 .09 45);
 }
+/* full-screen match (vs CPU / online) with transparent controls over the pitch */
+.match-full { position:fixed; inset:0; padding:0; gap:0; overflow:hidden; z-index:40; }
+.match-full .scoreboard { position:absolute; top:.4rem; left:50%; transform:translateX(-50%); z-index:5; background: oklch(0.22 0.04 150 / 70%); font-size:1.2rem; padding:.3rem .6rem; }
+.match-full .pitch-wrap { max-width:none; height:100dvh; }
+.match-full .pitch-viewport { height:100%; overflow:hidden; }
+.match-full .pitch-canvas { height:100dvh; width:auto; min-width:100%; object-fit:cover; }
+.match-shell:not(.match-full) .pitch-canvas { max-height:calc(100dvh - 330px); object-fit:contain; }
+.touch-overlay { position:absolute; left:0; right:0; bottom:0; z-index:4; pointer-events:none; padding:0 1rem 1rem; }
+.touch-overlay .touchpad { display:flex; width:100%; align-items:flex-end; gap:2.25rem; }
+.touch-overlay .stick { margin-right:auto; pointer-events:auto; background: oklch(0.22 0.04 150 / 35%); }
+.touch-overlay button { pointer-events:auto; opacity:.6; }
+.touch-overlay .tbtn, .touch-overlay .mini { background: oklch(0.28 0.05 150 / 45%); }
+.touch-overlay .tbtn-shoot { background: oklch(0.9 0.19 105 / 55%); }
+.touch-overlay .skill-controls { flex-direction:column; grid-column:auto; }
+@media (hover:hover) and (pointer:fine) { .touch-overlay { display:none; } }
+.emoji-bar { display:flex; gap:.2rem; } .emoji-bar button { font-size:1.2rem; line-height:1; padding:.1rem .2rem; }
+.emoji-float { position:absolute; inset:0; pointer-events:none; }
+.emoji-float span { position:absolute; bottom:30%; font-size:3rem; animation: rise 2.2s ease-out forwards; }
+.emoji-float .mine { left:20%; } .emoji-float .theirs { right:20%; }
+@keyframes rise { to { transform: translateY(-40vh); opacity:0; } }
+.flash { flex-direction:column; } .celebration { display:block; font-size:clamp(1.5rem,4vw,3rem); color: var(--chalk); }
+.event-actions { position:absolute; top:4rem; right:.75rem; display:flex; flex-direction:column; gap:.5rem; z-index:6; }
+.event-actions .chip { background: oklch(0.22 0.04 150 / 80%); }
+.event-actions .chip-on { background: var(--chalk); }
+.replay-tag { position:absolute; top:4rem; left:1rem; font-family: var(--font-display); font-size:2rem; color: var(--primary); z-index:6; }
+.match-full .overlay { z-index:10; }

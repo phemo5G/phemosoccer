@@ -40,7 +40,11 @@ export type State = {
   over: boolean;
   difficulty: Difficulty;
   cpuTeam: 0 | 1 | null;
+  /** Highlights raised this step (GOAL / SAVE / TACKLE); the UI drains them. */
+  events?: string[];
+  celebration?: string;
 };
+export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];
 
 // 4-4-2: GK, 4 DEF, 4 MID, 2 FWD (x as fraction of pitch from own goal)
 const FORM: [number, number, boolean][] = [
@@ -219,7 +223,7 @@ function foul(s: State, victim: number, x: number, y: number) {
 export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   const dt = Math.min(rawDt, 0.05);
   if (s.over) return;
-  if (s.pause > 0) { s.pause -= dt; if (s.pause <= 0) s.flash = ""; return; }
+  if (s.pause > 0) { s.pause -= dt; if (s.pause <= 0) { s.flash = ""; s.celebration = ""; } return; }
   s.time += dt;
   if (s.time >= s.duration) { s.over = true; s.flash = "FULL TIME"; return; }
   const b = s.ball;
@@ -366,6 +370,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       if (o.team === q.team) return;
       // Reaching the ball first is a clean challenge, including from behind.
       o.cd = 0.8;
+      (s.events ??= []).push("TACKLE");
     }
     b.owner = -1;
     q.cleanTackle = true;
@@ -428,7 +433,9 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       const scorer = b.x < 0 ? 1 : 0;
       s.score[scorer]++;
       s.flash = s.lastShot ? `GOAL! ${s.lastShot}` : "GOAL!";
-      s.pause = 2;
+      s.pause = 4;
+      s.celebration = CELEBRATIONS[Math.floor(Math.random() * CELEBRATIONS.length)]!;
+      (s.events ??= []).push("GOAL");
       kickoff(s, scorer === 0 ? 1 : 0);
       return;
     }
@@ -448,6 +455,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     });
     if (best >= 0) {
       const q = s.players[best]!;
+      if (q.gk && bs > 450 && s.lastTouch !== q.team) (s.events ??= []).push("SAVE");
       s.lastTouch = q.team;
       if (q.gk && bs > 500 && Math.random() < 0.35) { b.vx *= -0.4; b.vy = (Math.random() - 0.5) * 300; q.cd = 0.3; }
       else { b.owner = best; if (q.gk) s.lastShot = ""; }
