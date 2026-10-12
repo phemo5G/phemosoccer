@@ -223,7 +223,7 @@ function foul(s: State, victim: number, x: number, y: number) {
 export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   const dt = Math.min(rawDt, 0.05);
   if (s.over) return;
-  if (s.pause > 0) { s.pause -= dt; if (s.pause <= 0) s.flash = ""; return; }
+  if (s.pause > 0) { s.pause -= dt; if (s.pause <= 0) { s.flash = ""; s.celebration = ""; } return; }
   s.time += dt;
   if (s.time >= s.duration) { s.over = true; s.flash = "FULL TIME"; return; }
   const b = s.ball;
