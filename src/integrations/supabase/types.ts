@@ -14,7 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      league_players: {
+        Row: {
+          created_at: string
+          id: string
+          league_id: string
+          name: string
+          team: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          league_id: string
+          name: string
+          team: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          league_id?: string
+          name?: string
+          team?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_players_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_results: {
+        Row: {
+          away_goals: number
+          away_player: string
+          created_at: string
+          home_goals: number
+          home_player: string
+          id: string
+          league_id: string
+        }
+        Insert: {
+          away_goals?: number
+          away_player: string
+          created_at?: string
+          home_goals?: number
+          home_player: string
+          id?: string
+          league_id: string
+        }
+        Update: {
+          away_goals?: number
+          away_player?: string
+          created_at?: string
+          home_goals?: number
+          home_player?: string
+          id?: string
+          league_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_results_away_player_fkey"
+            columns: ["away_player"]
+            isOneToOne: false
+            referencedRelation: "league_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_results_home_player_fkey"
+            columns: ["home_player"]
+            isOneToOne: false
+            referencedRelation: "league_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_results_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leagues: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

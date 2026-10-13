@@ -17,3 +17,7 @@
 - [x] Clubs mode (local): create club + player, OVR from goals/assists, knockout cup
 - [ ] Clubs online: create club + player (stats from 0, grow with goals/assists), knockout cup with captain difficulty, online club vs club by code with CPU teammates
 - [ ] Voice chat in online matches
+- [ ] Voice chat in online matches (WebRTC)
+- [ ] Friend leagues: invite by code, one team each, play everyone twice, most points wins
+- [ ] Reduce lag (smoother online, lighter rendering)
+- [ ] Clubs complete: online club vs club by code, player looks picker
