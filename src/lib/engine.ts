@@ -43,7 +43,7 @@ export type State = {
   /** Highlights raised this step (GOAL / SAVE / TACKLE); the UI drains them. */
   events?: string[];
   kickers?: { name: string; team: 0 | 1 }[];
-  goals?: { scorer: string; assist?: string; team: 0 | 1 }[];
+  goals?: { scorer: string; assist?: string | undefined; team: 0 | 1 }[];
   celebration?: string;
 };
 export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];

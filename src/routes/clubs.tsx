@@ -46,7 +46,7 @@ function Clubs() {
   if (!club) return <Create onDone={save} />;
 
   const round = club.round;
-  const opp = opponents[Math.min(opponents.length - 1, Math.floor((round / 4) * opponents.length * 0.75) + Math.floor(Math.random() * 3))] ?? opponents[0]!;
+  const opp = opponents[Math.min(opponents.length - 1, Math.floor((round / 4) * opponents.length * 0.75) + (club.matches % 3))] ?? opponents[0]!;
   const levelIdx = Math.min(DIFFICULTIES.length - 1, DIFFICULTIES.indexOf(club.difficulty) + (round >= 3 ? 1 : 0));
   const level = DIFFICULTIES[levelIdx]!;
 
