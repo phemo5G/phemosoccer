@@ -32,7 +32,7 @@ function say(text: string) {
 }
 type Snap = { players: P[]; ball: State["ball"] };
 
-type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty };
+type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty; onFinish?: (s: State) => void; exitLabel?: string };
 
 const emptyPad = (): Pad => ({ dx: 0, dy: 0, pass: false, shoot: false });
 const ACTIONS = ["pass", "shoot", "finesse", "chip", "tackle", "lob", "through", "skill"] as const;
@@ -45,7 +45,7 @@ let CAM: "broadcast" | "top" = "broadcast";
 /** Behind-the-taker view for free kicks and penalties. */
 let SP: { ox: number; oy: number; fx: number; fy: number } | null = null;
 
-export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }: Props) {
+export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro", onFinish, exitLabel }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<State | null>(null);
   const pads = useRef<[Pad, Pad]>([emptyPad(), emptyPad()]);
@@ -257,7 +257,7 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro" }
             {net && <p className="opacity-80">You are {guest ? `P2 · ${away.name}` : `P1 · ${home.name}`}</p>}
             <div className="flex gap-3">
               {!hud.over && !hud.left && <Button variant="ghost" className="btn-primary" onClick={() => { setStarted(true); setPaused(false); }}>{started ? "Resume" : "Kick off"}</Button>}
-              <Button variant="ghost" className="btn-primary" onClick={onExit}>{net ? "Leave match" : started ? "New match" : "Back"}</Button>
+              <Button variant="ghost" className="btn-primary" onClick={() => { if (hud.over && onFinish && stateRef.current) onFinish(stateRef.current); else onExit(); }}>{hud.over && exitLabel ? exitLabel : net ? "Leave match" : started ? "New match" : "Back"}</Button>
               <Link to="/" className="btn-ghost">Main menu</Link>
             </div>
             {!hud.over && !guest && stateRef.current && <Tactics s={stateRef.current} team={0} club={home} />}

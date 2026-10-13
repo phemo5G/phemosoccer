@@ -42,6 +42,8 @@ export type State = {
   cpuTeam: 0 | 1 | null;
   /** Highlights raised this step (GOAL / SAVE / TACKLE); the UI drains them. */
   events?: string[];
+  kickers?: { name: string; team: 0 | 1 }[];
+  goals?: { scorer: string; assist?: string; team: 0 | 1 }[];
   celebration?: string;
 };
 export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];
@@ -146,6 +148,7 @@ function kick(s: State, i: number, type: Kick, aimY: number, charge = 0.45) {
   p.cd = 0.35;
   p.anim = 3; p.at = 0.3; p.skill = "";
   s.lastTouch = p.team; s.setPiece = -1; s.spKind = "";
+  if (s.kickers?.[0]?.name !== p.name) s.kickers = [{ name: p.name, team: p.team }, ...(s.kickers ?? [])].slice(0, 2);
 }
 
 function header(s: State, j: number) {
@@ -432,6 +435,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     if (inMouth && (b.x < -4 || b.x > W + 4)) {
       const scorer = b.x < 0 ? 1 : 0;
       s.score[scorer]++;
+      { const k = s.kickers ?? []; if (k[0]?.team === scorer) (s.goals ??= []).push({ scorer: k[0].name, assist: k[1]?.team === scorer ? k[1].name : undefined, team: scorer }); s.kickers = []; }
       s.flash = s.lastShot ? `GOAL! ${s.lastShot}` : "GOAL!";
       s.pause = 4;
       s.celebration = CELEBRATIONS[Math.floor(Math.random() * CELEBRATIONS.length)]!;
