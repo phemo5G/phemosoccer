@@ -4,6 +4,7 @@ import { TEAMS, type Team } from "@/lib/teams";
 import { Match } from "@/components/Match";
 import { Button } from "@/components/ui/button";
 import { DIFFICULTIES, type Difficulty, type State } from "@/lib/engine";
+import { type Club, KEY, POSITIONS, ROUNDS, ovrOf, clubTeam } from "@/lib/club";
 
 export const Route = createFileRoute("/clubs")({
   head: () => ({
@@ -18,20 +19,6 @@ export const Route = createFileRoute("/clubs")({
   }),
   component: Clubs,
 });
-
-type Club = { name: string; short: string; primary: string; secondary: string; player: string; position: string; goals: number; assists: number; matches: number; wins: number; cups: number; round: number; difficulty: Difficulty };
-const KEY = "phemo-club";
-const POSITIONS = ["GK", "CB", "CM", "LW", "RW", "ST"] as const;
-const ORDER = ["GK", "LB", "CB", "CB", "RB", "LW", "CM", "CM", "CM", "ST", "RW"];
-const ROUNDS = ["Round of 16", "Quarter-final", "Semi-final", "Final"];
-export const ovrOf = (c: Pick<Club, "goals" | "assists" | "wins" | "matches">) => Math.min(99, c.goals * 4 + c.assists * 3 + c.wins * 2 + c.matches);
-
-function clubTeam(c: Club): Team {
-  const ovr = ovrOf(c), eff = Math.max(45, ovr);
-  const slot = ORDER.indexOf(c.position);
-  const lineup = ORDER.map((position, i) => i === slot ? { name: c.player, position, rating: eff } : { name: `${c.short} ${position}${i}`, position, rating: 70 });
-  return { id: "myclub", name: c.name, short: c.short, primary: c.primary, secondary: c.secondary, rating: 70, league: "My Club", players: [c.player], lineup };
-}
 
 function Clubs() {
   const [club, setClub] = useState<Club | null>(null);
