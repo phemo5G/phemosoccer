@@ -45,6 +45,8 @@ export type State = {
   kickers?: { name: string; team: 0 | 1 }[];
   goals?: { scorer: string; assist?: string | undefined; team: 0 | 1 }[];
   celebration?: string;
+  /** Pro-clubs lock: player index each human controls for the whole match (-1 = auto switch). */
+  locked?: [number, number];
 };
 export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];
 
@@ -233,6 +235,8 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
 
   // choose controlled players
   for (const t of [0, 1] as const) {
+    const lock = s.locked?.[t] ?? -1;
+    if (lock >= 0) { s.controlled[t] = lock; continue; }
     const owner = b.owner >= 0 && s.players[b.owner]!.team === t ? b.owner : -1;
     if (owner >= 0) { s.controlled[t] = owner; continue; }
     const cur = s.players[s.controlled[t]] as P;
@@ -299,6 +303,11 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       tx = p.x; ty = p.y;
       const dg = dist(p.x, p.y, t === 0 ? W : 0, H / 2);
       if (p.cd <= 0) kick(s, i, s.spKind === "penalty" ? (Math.random() < 0.5 ? "power" : "finesse") : s.spKind === "freekick" && dg < 380 ? "finesse" : "lob", (Math.random() - 0.5) * 1.6);
+    } else if (b.owner === i && pad && (s.locked?.[t] ?? -1) >= 0 && p.cd <= 0 && (pad.pass || pad.shoot)) {
+      // pro-clubs: the human calls for the ball (pass) or tells the AI carrier to shoot
+      const me = s.players[s.locked![t]]!;
+      if (pad.shoot) kick(s, i, "power", (Math.random() - 0.5) * 1.2);
+      else { const d = dist(p.x, p.y, me.x, me.y) || 1; p.fx = (me.x - p.x) / d; p.fy = (me.y - p.y) / d; kick(s, i, d > 450 ? "lob" : "pass", 0); }
     } else if (b.owner === i) {
       // AI dribbler
       const gx = t === 0 ? W : 0;
