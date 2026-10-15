@@ -23,7 +23,7 @@ export type Pad = { dx: number; dy: number; pass: boolean; shoot: boolean; fines
 export type Kick = "pass" | "power" | "finesse" | "chip" | "lob" | "through";
 /** anim: 0 run, 1 slide tackle, 2 keeper dive, 3 kick, 4 header, 5 skill move, 6 fallen */
 export const SKILLS = ["RAINBOW FLICK", "STEPOVERS", "ROULETTE", "ELASTICO", "HEEL FLICK"];
-export type P = { x: number; y: number; vx: number; vy: number; fx: number; fy: number; team: 0 | 1; gk: boolean; hx: number; hy: number; num: number; cd: number; name: string; anim: number; at: number; dvx: number; dvy: number; ph: number; skill: string; rating: number; position: string; cleanTackle: boolean; chargeLevel?: number; chargeKind?: ChargedAction };
+export type P = { x: number; y: number; vx: number; vy: number; fx: number; fy: number; team: 0 | 1; gk: boolean; hx: number; hy: number; num: number; cd: number; name: string; anim: number; at: number; dvx: number; dvy: number; ph: number; skill: string; rating: number; position: string; cleanTackle: boolean; chargeLevel?: number; chargeKind?: ChargedAction; yellow?: number; red?: boolean; captain?: boolean; card?: number };
 export type State = {
   players: P[];
   ball: { x: number; y: number; vx: number; vy: number; owner: number; z: number; vz: number; spin: number };
@@ -47,6 +47,11 @@ export type State = {
   celebration?: string;
   /** Pro-clubs lock: player index each human controls for the whole match (-1 = auto switch). */
   locked?: [number, number];
+  /** Per-player match stats keyed by name: goals, assists, tackles, saves. */
+  stats?: Record<string, { g: number; a: number; t: number; sv: number }>;
+  celebrant?: number;
+  celebT?: number;
+  pendingKick?: 0 | 1;
 };
 export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];
 
@@ -75,12 +80,18 @@ export function createState(a: Team, b: Team, duration = 180, difficulty: Diffic
     });
   });
   const s: State = { players, ball: { x: W / 2, y: H / 2, vx: 0, vy: 0, owner: -1, z: 0, vz: 0, spin: 0 }, lastShot: "", lastTouch: 0, setPiece: -1, spKind: "", score: [0, 0], time: 0, duration, controlled: [9, 20], pause: 0, flash: "", over: false, difficulty, cpuTeam };
+  [a, b].forEach((t, ti) => {
+    const mine = players.filter((p) => p.team === ti);
+    const named = t.captain ? mine.find((p) => p.name === t.captain) : undefined;
+    const cap = named ?? mine.filter((p) => !p.gk).reduce((x, y) => (y.rating > x.rating ? y : x), mine[1]!);
+    cap.captain = true;
+  });
   kickoff(s, 0);
   return s;
 }
 
 function kickoff(s: State, team: 0 | 1) {
-  s.players.forEach((p) => { p.x = p.hx; p.y = p.hy; p.vx = p.vy = 0; p.cd = 0.3; p.anim = 0; p.at = 0; });
+  s.players.forEach((p) => { if (p.red) return; p.x = p.hx; p.y = p.hy; p.vx = p.vy = 0; p.cd = 0.3; p.anim = 0; p.at = 0; });
   s.setPiece = -1; s.spKind = "";
   s.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, owner: -1, z: 0, vz: 0, spin: 0 };
   const k = s.players[team === 0 ? 9 : 20]!;
@@ -128,7 +139,7 @@ function kick(s: State, i: number, type: Kick, aimY: number, charge = 0.45) {
     const dir = p.team === 0 ? 1 : -1;
     let best = -1, bestScore = -Infinity;
     s.players.forEach((q, j) => {
-      if (j === i || q.team !== p.team || q.gk) return;
+      if (j === i || q.team !== p.team || q.gk || q.red) return;
       const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
       const align = (dx * p.fx + dy * p.fy) / (d || 1);
       const fwd = ((q.x - p.x) * dir) / 300;
@@ -165,7 +176,7 @@ function header(s: State, j: number) {
     s.lastShot = "HEADER";
   } else {
     let best = -1, bd = Infinity;
-    s.players.forEach((m, k) => { if (k === j || m.team !== q.team || m.gk) return; const d = dist(m.x, m.y, q.x, q.y); const f = (m.x - q.x) * (q.team === 0 ? 1 : -1); if (f > 0 && d < bd) { bd = d; best = k; } });
+    s.players.forEach((m, k) => { if (k === j || m.team !== q.team || m.gk || m.red) return; const d = dist(m.x, m.y, q.x, q.y); const f = (m.x - q.x) * (q.team === 0 ? 1 : -1); if (f > 0 && d < bd) { bd = d; best = k; } });
     const m = s.players[best >= 0 ? best : j]!;
     const d = dist(b.x, b.y, m.x, m.y) || 1;
     b.vx = ((m.x - b.x) / d) * 460; b.vy = ((m.y - b.y) / d) * 460; b.vz = 140;
@@ -173,7 +184,7 @@ function header(s: State, j: number) {
 }
 
 function resetShape(s: State) {
-  s.players.forEach((p) => { p.x = p.hx; p.y = p.hy; p.vx = p.vy = 0; p.anim = 0; p.at = 0; p.skill = ""; });
+  s.players.forEach((p) => { if (p.red) return; p.x = p.hx; p.y = p.hy; p.vx = p.vy = 0; p.anim = 0; p.at = 0; p.skill = ""; });
   const b = s.ball; b.vx = b.vy = b.vz = b.z = b.spin = 0;
 }
 
@@ -211,24 +222,55 @@ function restart(s: State, side: 0 | 1) {
   }
 }
 
-function foul(s: State, victim: number, x: number, y: number) {
+const stat = (s: State, name: string) => ((s.stats ??= {})[name] ??= { g: 0, a: 0, t: 0, sv: 0 });
+
+/** Book the fouler: reckless from-behind or chance-denying fouls earn cards; two yellows or both at once is a red. */
+export function bookFoul(s: State, fouler: number, victim: number) {
+  const f = s.players[fouler], v = s.players[victim];
+  if (!f || !v) return "";
+  const fromBehind = f.fx * v.fx + f.fy * v.fy > 0.4;
+  const goalX = f.team === 0 ? 0 : W;
+  const denying = Math.abs(v.x - goalX) < 420 && Math.abs(v.y - H / 2) < 300;
+  let card: "" | "YELLOW" | "RED" = "";
+  if (fromBehind && denying) card = "RED";
+  else if (fromBehind || denying || Math.random() < 0.25) card = "YELLOW";
+  if (card === "YELLOW") { f.yellow = (f.yellow ?? 0) + 1; if (f.yellow >= 2) card = "RED"; }
+  if (!card) return "";
+  f.card = 2.5;
+  if (card === "RED") {
+    f.red = true; f.anim = 0; f.at = 0; f.x = f.hx; f.y = -80; f.vx = f.vy = 0;
+    if (s.locked && s.locked[f.team] === fouler) s.locked[f.team] = -1;
+    if (s.controlled[f.team] === fouler) { const next = s.players.findIndex((p) => p.team === f.team && !p.gk && !p.red); if (next >= 0) s.controlled[f.team] = next; }
+  }
+  (s.events ??= []).push("CARD");
+  return card === "RED" ? ` · RED CARD ${f.name}` : ` · YELLOW ${f.name}`;
+}
+
+function foul(s: State, victim: number, x: number, y: number, fouler = -1) {
   const v = s.players[victim]!;
+  const booking = fouler >= 0 ? bookFoul(s, fouler, victim) : "";
   const defGoalX = v.team === 0 ? W : 0; // fouling team's goal
   const inBox = Math.abs(x - defGoalX) < BOX_D && Math.abs(y - H / 2) < BOX_HALF;
   resetShape(s);
   if (inBox) {
     const px = v.team === 0 ? W - PEN_SPOT : PEN_SPOT;
     s.players.forEach((p) => { if (!p.gk && Math.abs(p.x - defGoalX) < BOX_D + 20) p.x = defGoalX + (v.team === 0 ? -1 : 1) * (BOX_D + 30); });
-    giveSetPiece(s, victim, px - (v.team === 0 ? 16 : -16), H / 2, "penalty", "FOUL! PENALTY");
+    giveSetPiece(s, victim, px - (v.team === 0 ? 16 : -16), H / 2, "penalty", "FOUL! PENALTY" + booking);
   } else {
-    giveSetPiece(s, victim, Math.max(20, Math.min(W - 20, x)), Math.max(20, Math.min(H - 20, y)), "freekick", "FOUL! FREE KICK");
+    giveSetPiece(s, victim, Math.max(20, Math.min(W - 20, x)), Math.max(20, Math.min(H - 20, y)), "freekick", "FOUL! FREE KICK" + booking);
   }
 }
 
 export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   const dt = Math.min(rawDt, 0.05);
   if (s.over) return;
-  if (s.pause > 0) { s.pause -= dt; if (s.pause <= 0) { s.flash = ""; s.celebration = ""; } return; }
+  s.players.forEach((p) => { if (p.card) p.card = Math.max(0, p.card - dt); });
+  if (s.pause > 0) {
+    s.pause -= dt;
+    if (s.celebration) celebrate(s, dt);
+    if (s.pause <= 0) { s.flash = ""; s.celebration = ""; if (s.pendingKick !== undefined) { kickoff(s, s.pendingKick); s.pendingKick = undefined; } s.celebrant = -1; }
+    return;
+  }
   s.time += dt;
   if (s.time >= s.duration) { s.over = true; s.flash = "FULL TIME"; return; }
   const b = s.ball;
@@ -242,7 +284,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     const cur = s.players[s.controlled[t]] as P;
     let best = s.controlled[t], bd = dist(cur.x, cur.y, b.x, b.y) - 40;
     s.players.forEach((p, i) => {
-      if (p.team !== t || p.gk) return;
+      if (p.team !== t || p.gk || p.red) return;
       const d = dist(p.x, p.y, b.x, b.y);
       if (d < bd) { bd = d; best = i; }
     });
@@ -255,13 +297,14 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   for (const t of [0, 1] as const) {
     let bd = Infinity;
     s.players.forEach((p, i) => {
-      if (p.team !== t || p.gk || i === s.controlled[t] && pads[t]) return;
+      if (p.team !== t || p.gk || p.red || i === s.controlled[t] && pads[t]) return;
       const d = dist(p.x, p.y, b.x, b.y);
       if (d < bd) { bd = d; chaser[t] = i; }
     });
   }
 
   s.players.forEach((p, i) => {
+    if (p.red) { p.vx = p.vy = 0; return; }
     p.cd = Math.max(0, p.cd - dt);
     const t = p.team;
     const pad = pads[t];
@@ -366,6 +409,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
   for (let i = 0; i < s.players.length; i++)
     for (let j = i + 1; j < s.players.length; j++) {
       const a = s.players[i]!, c = s.players[j]!;
+      if (a.red || c.red) continue;
       const d = dist(a.x, a.y, c.x, c.y);
       if (d > 0 && d < PR * 2) { const o = (PR * 2 - d) / 2; const nx = (a.x - c.x) / d, ny = (a.y - c.y) / d; a.x += nx * o; a.y += ny * o; c.x -= nx * o; c.y -= ny * o; }
     }
@@ -383,6 +427,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       // Reaching the ball first is a clean challenge, including from behind.
       o.cd = 0.8;
       (s.events ??= []).push("TACKLE");
+      stat(s, q.name).t++;
     }
     b.owner = -1;
     q.cleanTackle = true;
@@ -400,7 +445,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
       const o = s.players[vi]!; o.anim = 6; o.at = 0.6;
       const bx = o.x, by = o.y;
       s.lastTouch = o.team;
-      foul(s, vi, bx, by); return;
+      foul(s, vi, bx, by, s.players.indexOf(q)); return;
     }
   }
 
@@ -421,7 +466,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     s.players.forEach((q, j) => {
       if (q.team !== o.team && q.cd <= 0 && q.anim !== 1 && s.setPiece < 0 && dist(q.x, q.y, b.x, b.y) < 16 && o.cd <= 0) {
         const chance = q.gk ? 1 : tackleChance(q.rating, o.rating, o.anim === 5);
-        if (Math.random() < chance) { b.owner = j; q.cd = 0.5; o.cd = 0.6; }
+        if (Math.random() < chance) { b.owner = j; q.cd = 0.5; o.cd = 0.6; if (!q.gk) stat(s, q.name).t++; }
         else o.cd = 0.3;
       }
     });
@@ -444,12 +489,14 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     if (inMouth && (b.x < -4 || b.x > W + 4)) {
       const scorer = b.x < 0 ? 1 : 0;
       s.score[scorer]++;
-      { const k = s.kickers ?? []; if (k[0]?.team === scorer) (s.goals ??= []).push({ scorer: k[0].name, assist: k[1]?.team === scorer ? k[1].name : undefined, team: scorer }); s.kickers = []; }
+      { const k = s.kickers ?? []; if (k[0]?.team === scorer) { (s.goals ??= []).push({ scorer: k[0].name, assist: k[1]?.team === scorer ? k[1].name : undefined, team: scorer }); stat(s, k[0].name).g++; if (k[1]?.team === scorer) stat(s, k[1].name).a++; } s.celebrant = k[0]?.team === scorer ? s.players.findIndex((p) => p.name === k[0]!.name && p.team === scorer) : -1; s.kickers = []; }
       s.flash = s.lastShot ? `GOAL! ${s.lastShot}` : "GOAL!";
       s.pause = 4;
       s.celebration = CELEBRATIONS[Math.floor(Math.random() * CELEBRATIONS.length)]!;
       (s.events ??= []).push("GOAL");
-      kickoff(s, scorer === 0 ? 1 : 0);
+      s.celebT = 0; b.vx = b.vy = b.vz = 0; b.owner = -1;
+      if ((s.celebrant ?? -1) < 0) s.celebrant = s.players.reduce((bi, p, j) => (p.team === scorer && !p.gk && !p.red && dist(p.x, p.y, b.x, b.y) < dist(s.players[bi]!.x, s.players[bi]!.y, b.x, b.y) ? j : bi), scorer === 0 ? 9 : 20);
+      s.pendingKick = scorer === 0 ? 1 : 0;
       return;
     }
     // headers
@@ -468,7 +515,7 @@ export function step(s: State, rawDt: number, pads: [Pad | null, Pad | null]) {
     });
     if (best >= 0) {
       const q = s.players[best]!;
-      if (q.gk && bs > 450 && s.lastTouch !== q.team) (s.events ??= []).push("SAVE");
+      if (q.gk && bs > 450 && s.lastTouch !== q.team) { (s.events ??= []).push("SAVE"); stat(s, q.name).sv++; }
       s.lastTouch = q.team;
       if (q.gk && bs > 500 && Math.random() < 0.35) { b.vx *= -0.4; b.vy = (Math.random() - 0.5) * 300; q.cd = 0.3; }
       else { b.owner = best; if (q.gk) s.lastShot = ""; }
@@ -495,4 +542,47 @@ export function setFormation(s: State, team: 0 | 1, key: string) {
 export function substitute(s: State, team: 0 | 1, slot: number, name: string, rating?: number) {
   const p = s.players.filter((q) => q.team === team)[slot];
   if (p) { p.name = name; if (rating !== undefined) p.rating = rating; }
+}
+
+/** Goal celebration choreography during the post-goal pause; anim 7 knee slide, 8 fist pump, 9 arms up, 10 kiss. */
+function celebrate(s: State, dt: number) {
+  const i = s.celebrant ?? -1, p = s.players[i];
+  if (!p) return;
+  s.celebT = (s.celebT ?? 0) + dt;
+  const t = s.celebT, dir = p.team === 0 ? 1 : -1;
+  const run = (q: P, tx: number, ty: number, sp: number) => {
+    const d = dist(q.x, q.y, tx, ty);
+    if (d < 6) { q.vx = q.vy = 0; return true; }
+    q.vx = ((tx - q.x) / d) * sp; q.vy = ((ty - q.y) / d) * sp;
+    q.x += q.vx * dt; q.y += q.vy * dt; q.fx = (tx - q.x) / d; q.fy = (ty - q.y) / d; q.ph += sp * dt * 0.06;
+    return false;
+  };
+  const kind = s.celebration;
+  if (kind === "KNEE SLIDE") {
+    if (t < 0.9) { run(p, p.x + dir * 60, p.y, 240); p.anim = 0; }
+    else { p.anim = 7; p.at = 1; const k = Math.max(0, 1 - (t - 0.9) / 1.4); p.x = Math.max(PR, Math.min(W - PR, p.x - dir * 260 * k * dt)); }
+  } else if (kind === "CORNER FLAG RUN") {
+    const cy = p.y < H / 2 ? 30 : H - 30, cx = p.team === 0 ? W - 30 : 30;
+    if (run(p, cx, cy, 260)) { p.anim = 8; p.at = 1; } else p.anim = 0;
+  } else if (kind === "BLOWS A KISS") {
+    if (run(p, p.x - dir * 80, H - 40, 220) || t > 2) { p.anim = 10; p.at = 1; p.fx = 0; p.fy = 1; } else p.anim = 0;
+  } else {
+    if (t < 0.6) run(p, p.x - dir * 30, p.y, 180);
+    p.anim = 9; p.at = 1;
+    const mates = s.players.map((q, j) => ({ q, j })).filter(({ q, j }) => j !== i && q.team === p.team && !q.gk && !q.red).sort((x, y) => dist(x.q.x, x.q.y, p.x, p.y) - dist(y.q.x, y.q.y, p.x, p.y)).slice(0, 4);
+    mates.forEach(({ q }, k) => { const a = (k / 4) * Math.PI * 2; if (run(q, p.x + Math.cos(a) * 22, p.y + Math.sin(a) * 14, 250)) { q.anim = 9; q.at = 1; } else q.anim = 0; });
+  }
+}
+
+export type Motm = { name: string; team: 0 | 1; g: number; a: number; t: number; sv: number; rating: number };
+/** Man of the match: weighted goals, assists, tackles and saves, with winners and rating as tie-breakers. */
+export function manOfTheMatch(s: State): Motm | null {
+  const winner = s.score[0] === s.score[1] ? -1 : s.score[0] > s.score[1] ? 0 : 1;
+  let best: Motm | null = null, bestScore = -Infinity;
+  for (const p of s.players) {
+    const st = s.stats?.[p.name] ?? { g: 0, a: 0, t: 0, sv: 0 };
+    const sc = st.g * 3 + st.a * 2 + st.t * 0.8 + st.sv * 1.2 + (p.team === winner ? 1 : 0) + p.rating / 100 - (p.red ? 3 : 0) - (p.yellow ?? 0) * 0.5;
+    if (sc > bestScore) { bestScore = sc; best = { name: p.name, team: p.team, rating: p.rating, ...st }; }
+  }
+  return best;
 }

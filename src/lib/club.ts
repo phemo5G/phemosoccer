@@ -12,7 +12,7 @@ export function clubTeam(c: Club): Team {
   const ovr = ovrOf(c), eff = Math.max(45, ovr);
   const slot = ORDER.indexOf(c.position);
   const lineup = ORDER.map((position, i) => i === slot ? { name: c.player, position, rating: eff } : { name: `${c.short} ${position}${i}`, position, rating: 70 });
-  return { id: "myclub", name: c.name, short: c.short, primary: c.primary, secondary: c.secondary, rating: 70, league: "My Club", players: [c.player], lineup };
+  return { id: "myclub", name: c.name, short: c.short, primary: c.primary, secondary: c.secondary, rating: 70, league: "My Club", players: [c.player], lineup, captain: c.player };
 }
 
 
