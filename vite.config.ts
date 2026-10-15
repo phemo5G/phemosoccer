@@ -13,10 +13,3 @@ export default defineConfig({
     server: { entry: "server" },
   },
 });
-import { defineConfig } from 'vite'
-import react from '@vitejs/react-vite'
-
-export default defineConfig({
-  plugins: [react()],
-  base: '/phemosoccer/', // Add this line (must match your repo name exactly with slashes)
-})

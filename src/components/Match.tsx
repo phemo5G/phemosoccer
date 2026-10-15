@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { VoiceChat } from "@/components/VoiceChat";
 import { createState, step, setFormation, substitute, FORMATIONS, W, H, GOAL_HALF, CROSSBAR, BOX_D, BOX_HALF, BALL_RADIUS, type ChargedAction, type Difficulty, type Pad, type P, type State } from "@/lib/engine";
 import { ChargeTracker, CHARGED_ACTIONS, CHARGE_SECONDS } from "@/lib/charge";
 import { benchFor, ratingFor } from "@/lib/teams";
@@ -9,7 +10,9 @@ import type { Team } from "@/lib/teams";
 /** Online link: host simulates and streams state; guest streams its controller. */
 export type Net = {
   role: "host" | "guest";
-  send: (event: "pad" | "state" | "emoji" | "skip", payload: unknown) => void;
+  send: (event: "pad" | "state" | "emoji" | "skip" | "rtc", payload: unknown) => void;
+  /** WebRTC voice signalling handler, installed by VoiceChat. */
+  rtc?: (msg: unknown) => void | Promise<void>;
   remotePad: { current: Pad | null };
   remoteState: { current: unknown };
   peerLeft: boolean;
@@ -32,7 +35,7 @@ function say(text: string) {
 }
 type Snap = { players: P[]; ball: State["ball"] };
 
-type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty; onFinish?: (s: State) => void; exitLabel?: string };
+type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty; onFinish?: (s: State) => void; exitLabel?: string; lockNames?: [string | undefined, string | undefined] };
 
 const emptyPad = (): Pad => ({ dx: 0, dy: 0, pass: false, shoot: false });
 const ACTIONS = ["pass", "shoot", "finesse", "chip", "tackle", "lob", "through", "skill"] as const;
@@ -45,7 +48,7 @@ let CAM: "broadcast" | "top" = "broadcast";
 /** Behind-the-taker view for free kicks and penalties. */
 let SP: { ox: number; oy: number; fx: number; fy: number } | null = null;
 
-export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro", onFinish, exitLabel }: Props) {
+export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro", onFinish, exitLabel, lockNames }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<State | null>(null);
   const pads = useRef<[Pad, Pad]>([emptyPad(), emptyPad()]);
@@ -85,6 +88,7 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro", 
 
   useEffect(() => {
     stateRef.current = createState(home, away, 180, difficulty, !twoPlayer && !net ? 1 : null);
+    if (lockNames) { const st = stateRef.current; st.locked = [0, 1].map((t) => lockNames[t] ? st.players.findIndex((p) => p.team === t && p.name === lockNames[t]) : -1) as [number, number]; }
     window.scrollTo(0, 0);
     const css = getComputedStyle(document.documentElement);
     (Object.keys(PALETTE) as (keyof typeof PALETTE)[]).forEach((key) => { PALETTE[key] = css.getPropertyValue(`--game-${key}`).trim(); });
@@ -230,6 +234,7 @@ export function Match({ home, away, twoPlayer, onExit, net, difficulty = "Pro", 
         <Button variant="ghost" className="sb-btn" aria-pressed={commentary} onClick={() => { setCommentary((v) => !v); window.speechSynthesis?.cancel(); }}>{commentary ? "🔊" : "🔇"}</Button>
         <Button variant="ghost" className="sb-btn" onClick={() => setPaused((v) => !v)}>{paused ? "Resume" : net ? "Menu" : "Pause"}</Button>
         <span className="emoji-bar">{EMOJIS.map((e) => <button key={e} type="button" aria-label={`React ${e}`} onClick={() => sendEmoji(e)}>{e}</button>)}</span>
+        {net && <VoiceChat net={net} />}
       </div>
       {!full && p1Pad}
       <div className="pitch-wrap">
