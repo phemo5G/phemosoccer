@@ -10,6 +10,8 @@ export type Team = {
   league: string;
   lineup?: { name: string; position: string; rating: number }[];
   playerRatings?: Record<string, number>;
+  /** Optional captain name; otherwise the highest-rated outfielder wears the armband. */
+  captain?: string;
 };
 
 export const ratingFor = (team: Team, name: string) => team.lineup?.find((p) => p.name === name)?.rating ?? team.playerRatings?.[name] ?? team.rating;
