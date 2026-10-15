@@ -51,7 +51,7 @@ export type State = {
   stats?: Record<string, { g: number; a: number; t: number; sv: number }>;
   celebrant?: number;
   celebT?: number;
-  pendingKick?: 0 | 1;
+  pendingKick?: 0 | 1 | undefined;
 };
 export const CELEBRATIONS = ["KNEE SLIDE", "TEAM HUG", "BLOWS A KISS", "CORNER FLAG RUN"];
 
