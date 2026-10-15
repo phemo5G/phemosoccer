@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { TEAMS } from "@/lib/teams";
+import { TEAMS, type Team } from "@/lib/teams";
+import { loadClub, clubTeam, type Club } from "@/lib/club";
 import { Match, type Net } from "@/components/Match";
 import type { Pad } from "@/lib/engine";
 
@@ -17,16 +18,21 @@ export const Route = createFileRoute("/online")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { club?: number } => (s["club"] ? { club: 1 } : {}),
   component: Online,
 });
 
-type Seat = { id: string; team: number; at: number };
+type Seat = { id: string; team: number; at: number; club?: Club | null };
 
 function Online() {
   const [code, setCode] = useState("");
   const [team, setTeam] = useState(0);
+  const search = Route.useSearch();
+  const [myClub, setMyClub] = useState<Club | null>(null);
+  const [useClub, setUseClub] = useState(false);
+  useEffect(() => { const c = loadClub(); setMyClub(c); if (c && search.club) setUseClub(true); }, [search.club]);
   const [status, setStatus] = useState<"idle" | "waiting" | "full" | "playing">("idle");
-  const [match, setMatch] = useState<{ home: number; away: number; role: "host" | "guest" } | null>(null);
+  const [match, setMatch] = useState<{ home: Team; away: Team; role: "host" | "guest"; locks?: [string | undefined, string | undefined] } | null>(null);
   const chRef = useRef<RealtimeChannel | null>(null);
   const net = useRef<Net>({ role: "host", send: () => {}, remotePad: { current: null }, remoteState: { current: null }, peerLeft: false });
 
@@ -50,6 +56,7 @@ function Online() {
     });
     ch.on("broadcast", { event: "emoji" }, ({ payload }) => { if (typeof payload === "string") n.inbox?.emojis.push(payload); });
     ch.on("broadcast", { event: "skip" }, () => { if (n.inbox) n.inbox.skip = true; });
+    ch.on("broadcast", { event: "rtc" }, ({ payload }) => { void n.rtc?.(payload); });
     ch.on("broadcast", { event: "state" }, ({ payload }) => { n.remoteState.current = payload; });
     ch.on("presence", { event: "sync" }, () => {
       const seats = Object.values(ch.presenceState<Seat>()).map((a) => a[0]!).sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
@@ -59,19 +66,22 @@ function Online() {
         const host = seats[0]!, guest = seats[1]!;
         let away = guest.team; if (away === host.team) away = (host.team + 1) % TEAMS.length;
         n.role = idx === 0 ? "host" : "guest";
-        setMatch((m) => m ?? { home: host.team, away, role: n.role });
+        const ht = host.club ? clubTeam(host.club) : TEAMS[host.team]!;
+        let at = guest.club ? clubTeam(guest.club) : TEAMS[away]!;
+        if (at.id === ht.id) at = { ...at, id: "myclub2" };
+        setMatch((m) => m ?? { home: ht, away: at, role: n.role, locks: [host.club?.player, guest.club?.player] });
         setStatus("playing");
       } else if (chRef.current) {
         setMatch((m) => { if (m) n.peerLeft = true; return m; });
         setStatus((s) => (s === "playing" ? s : "waiting"));
       }
     });
-    ch.subscribe((st) => { if (st === "SUBSCRIBED") void ch.track({ id: me, team, at: Date.now() }); });
+    ch.subscribe((st) => { if (st === "SUBSCRIBED") void ch.track({ id: me, team, at: Date.now(), club: useClub ? myClub : null }); });
     chRef.current = ch; setStatus("waiting");
   };
 
   if (status === "playing" && match)
-    return <Match home={TEAMS[match.home]!} away={TEAMS[match.away]!} twoPlayer net={net.current} onExit={leave} />;
+    return <Match home={match.home} away={match.away} twoPlayer net={net.current} onExit={leave} lockNames={match.locks} />;
 
   return (
     <main className="menu-bg min-h-screen px-5 py-8">
@@ -84,6 +94,7 @@ function Online() {
             {status === "full" && <p className="mt-4 text-destructive">That code already has two players. Try another code.</p>}
             <label className="eyebrow mt-6 block">Match code</label>
             <input value={code} onChange={(e) => setCode(e.target.value)} maxLength={20} placeholder="e.g. phemo123" className="mt-2 w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-2xl display tracking-widest" />
+            {myClub && <label className="mt-6 flex items-center gap-2"><input type="checkbox" checked={useClub} onChange={(e) => setUseClub(e.target.checked)} /> Play as my club ({myClub.name}, you control {myClub.player} only)</label>}
             <label className="eyebrow mt-6 block">Your team</label>
             <select value={team} onChange={(e) => setTeam(Number(e.target.value))} className="mt-2 w-full rounded-lg border border-border bg-background/70 px-4 py-3">
               {TEAMS.map((t, i) => <option key={t.id} value={i}>{t.name} ({t.league})</option>)}
