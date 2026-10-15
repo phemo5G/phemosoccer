@@ -12,7 +12,7 @@ export type Net = {
   role: "host" | "guest";
   send: (event: "pad" | "state" | "emoji" | "skip" | "rtc", payload: unknown) => void;
   /** WebRTC voice signalling handler, installed by VoiceChat. */
-  rtc?: (msg: unknown) => void | Promise<void>;
+  rtc?: ((msg: unknown) => void | Promise<void>) | undefined;
   remotePad: { current: Pad | null };
   remoteState: { current: unknown };
   peerLeft: boolean;
@@ -35,7 +35,7 @@ function say(text: string) {
 }
 type Snap = { players: P[]; ball: State["ball"] };
 
-type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty; onFinish?: (s: State) => void; exitLabel?: string; lockNames?: [string | undefined, string | undefined] };
+type Props = { home: Team; away: Team; twoPlayer: boolean; onExit: () => void; net?: Net; difficulty?: Difficulty; onFinish?: (s: State) => void; exitLabel?: string; lockNames?: [string | undefined, string | undefined] | undefined };
 
 const emptyPad = (): Pad => ({ dx: 0, dy: 0, pass: false, shoot: false });
 const ACTIONS = ["pass", "shoot", "finesse", "chip", "tackle", "lob", "through", "skill"] as const;

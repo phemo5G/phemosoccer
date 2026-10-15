@@ -18,7 +18,7 @@ export const Route = createFileRoute("/online")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>) => ({ club: s.club ? 1 : undefined }),
+  validateSearch: (s: Record<string, unknown>): { club?: number } => (s["club"] ? { club: 1 } : {}),
   component: Online,
 });
 
