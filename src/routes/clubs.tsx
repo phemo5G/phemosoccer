@@ -39,7 +39,7 @@ function Clubs() {
 
   if (playing) {
     const me = clubTeam(club);
-    return <Match home={me} away={opp} twoPlayer={false} difficulty={level} onExit={() => setPlaying(false)} exitLabel="Continue"
+    return <Match home={me} away={opp} twoPlayer={false} difficulty={level} onExit={() => setPlaying(false)} exitLabel="Continue" lockNames={[club.player, undefined]}
       onFinish={(s: State) => {
         const mine = (s.goals ?? []).filter((g) => g.team === 0);
         const goals = mine.filter((g) => g.scorer === club.player).length, assists = mine.filter((g) => g.assist === club.player).length;
@@ -75,7 +75,8 @@ function Clubs() {
           <p className="text-muted-foreground">CPU level: {level}. Each round gets harder.</p>
           <Button variant="ghost" className="btn-primary mt-4" onClick={() => { setResult(""); setPlaying(true); }}>Play {ROUNDS[round]}</Button>
         </div>
-        <p className="mt-6 text-sm text-muted-foreground">Online club vs club by code is coming next.</p>
+        <p className="mt-6 text-sm text-muted-foreground">You only control {club.player}. Press pass to call for the ball, shoot to tell a teammate to shoot.</p>
+        <Link to="/online" search={{ club: 1 }} className="btn-primary mt-4 inline-block">Club vs club online</Link>
         <Button variant="ghost" className="btn-ghost mt-4" onClick={() => { if (confirm("Delete your club and player?")) save(null); }}>Delete club</Button>
       </div>
     </main>
